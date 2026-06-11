@@ -49,9 +49,32 @@ type ResultResponse = {
     recommendedCalories?: number;
     targetDate?: string;
     detailedRecommendation?: {
+      bmr: number;
+      tdee: number;
       dailyCalories: number;
       weeklyWeightChangeKg: number;
       planFocus: string[];
+      report?: {
+        formula: string;
+        bmr: number;
+        selectedTdee: number;
+        targetWeightDeltaKg: number;
+        scenarios: {
+          activityLevel: string;
+          activityLabel: string;
+          activityFactor: number;
+          tdee: number;
+          mildDeficitCalories: number;
+          standardDeficitCalories: number;
+          mildDailyCalories: number;
+          standardDailyCalories: number;
+          mildWeeksToTarget: number | null;
+          standardWeeksToTarget: number | null;
+          mildTargetDate: string | null;
+          standardTargetDate: string | null;
+        }[];
+        notes: string[];
+      };
     };
     projectionCurve?: { week: number; date: string; weightKg: number }[];
     paywall?: {
@@ -111,8 +134,15 @@ const copy = {
     bmi: "BMI",
     category: "Category",
     calories: "Daily calories",
+    bmr: "BMR",
+    tdee: "TDEE",
     targetDate: "Target date",
     projection: "Weight projection",
+    reportTitle: "Fat-loss cycle report",
+    mildCut: "Mild cut",
+    standardCut: "Standard cut",
+    weeks: "weeks",
+    impossible: "Not recommended",
     fullPlanLocked: "Full plan locked",
     defaultPaywall: "Upgrade to unlock your full Pilates plan.",
     startOver: "Start over",
@@ -165,8 +195,15 @@ const copy = {
     bmi: "BMI",
     category: "分类",
     calories: "每日热量",
+    bmr: "基础代谢 BMR",
+    tdee: "总消耗 TDEE",
     targetDate: "目标日期",
     projection: "体重预测",
+    reportTitle: "减脂周期报告",
+    mildCut: "温和减脂",
+    standardCut: "标准减脂",
+    weeks: "周",
+    impossible: "不建议",
     fullPlanLocked: "完整计划已锁定",
     defaultPaywall: "解锁后可查看完整普拉提计划。",
     startOver: "重新开始",
@@ -1058,7 +1095,70 @@ function ResultPanel({
             )}
           />
         ) : null}
+        {isFull && result.result.detailedRecommendation ? (
+          <>
+            <Metric
+              label={String(t.bmr)}
+              value={`${result.result.detailedRecommendation.bmr} kcal`}
+            />
+            <Metric
+              label={String(t.tdee)}
+              value={`${result.result.detailedRecommendation.tdee} kcal`}
+            />
+          </>
+        ) : null}
       </div>
+
+      {isFull && result.result.detailedRecommendation?.report ? (
+        <div className="mt-7 rounded-3xl bg-[#f4f3ef] p-5">
+          <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h3 className="text-sm font-semibold">{String(t.reportTitle)}</h3>
+              <p className="mt-1 text-xs text-black/45">
+                {result.result.detailedRecommendation.report.formula} · 7700 kcal/kg
+              </p>
+            </div>
+            <p className="text-xs font-medium text-black/45">
+              {language === "zh" ? "目标差值" : "Target delta"}{" "}
+              {result.result.detailedRecommendation.report.targetWeightDeltaKg} kg
+            </p>
+          </div>
+
+          <div className="mt-4 grid gap-2">
+            {result.result.detailedRecommendation.report.scenarios.map(
+              (scenario) => (
+                <div
+                  className="grid gap-3 rounded-2xl bg-white/72 px-4 py-3 text-sm sm:grid-cols-[1.1fr_0.9fr_0.9fr]"
+                  key={scenario.activityLevel}
+                >
+                  <div>
+                    <p className="font-semibold">
+                      {translateActivityLabel(scenario.activityLevel, language)}
+                    </p>
+                    <p className="mt-1 text-xs text-black/45">
+                      TDEE {scenario.tdee} kcal · ×{scenario.activityFactor}
+                    </p>
+                  </div>
+                  <ScenarioCell
+                    calories={scenario.mildDailyCalories}
+                    label={String(t.mildCut)}
+                    language={language}
+                    targetDate={scenario.mildTargetDate}
+                    weeks={scenario.mildWeeksToTarget}
+                  />
+                  <ScenarioCell
+                    calories={scenario.standardDailyCalories}
+                    label={String(t.standardCut)}
+                    language={language}
+                    targetDate={scenario.standardTargetDate}
+                    weeks={scenario.standardWeeksToTarget}
+                  />
+                </div>
+              ),
+            )}
+          </div>
+        </div>
+      ) : null}
 
       {isFull && result.result.projectionCurve ? (
         <div className="mt-7 rounded-3xl bg-[#f4f3ef] p-5">
@@ -1132,9 +1232,64 @@ function Metric({ label, value }: { label: string; value: string }) {
   );
 }
 
+function ScenarioCell({
+  calories,
+  label,
+  language,
+  targetDate,
+  weeks,
+}: {
+  calories: number;
+  label: string;
+  language: Language;
+  targetDate: string | null;
+  weeks: number | null;
+}) {
+  const t = copy[language];
+
+  return (
+    <div>
+      <p className="text-xs font-semibold uppercase tracking-[0.1em] text-black/38">
+        {label}
+      </p>
+      <p className="mt-1 font-semibold">
+        {weeks === null ? String(t.impossible) : `${weeks} ${String(t.weeks)}`}
+      </p>
+      <p className="mt-1 text-xs leading-5 text-black/45">
+        {calories} kcal/day
+        {targetDate ? ` · ${targetDate}` : ""}
+      </p>
+    </div>
+  );
+}
+
 function formatAnswerValue(value: AnswerValue, language: Language) {
   const label = answerLabels[String(value)];
   return label ? label[language] : value;
+}
+
+function translateActivityLabel(activityLevel: string, language: Language) {
+  if (language === "en") {
+    const labels: Record<string, string> = {
+      sedentary: "Sedentary",
+      light: "Light activity",
+      moderate: "Moderate activity",
+      active: "High activity",
+      very_active: "Very high activity",
+    };
+
+    return labels[activityLevel] ?? activityLevel;
+  }
+
+  const labels: Record<string, string> = {
+    sedentary: "久坐",
+    light: "轻度活动",
+    moderate: "中度活动",
+    active: "高度活动",
+    very_active: "极高活动",
+  };
+
+  return labels[activityLevel] ?? activityLevel;
 }
 
 function translateBmiCategory(category: string, language: Language) {

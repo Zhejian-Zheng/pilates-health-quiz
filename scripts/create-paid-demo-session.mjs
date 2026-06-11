@@ -1,6 +1,7 @@
 const appUrl = process.env.APP_URL ?? "http://localhost:3000";
 
 const answers = [
+  { stepKey: "ageRange", questionKey: "ageRange", value: "30-39" },
   { stepKey: "gender", questionKey: "gender", value: "female" },
   { stepKey: "goal", questionKey: "goal", value: "Lose weight" },
   { stepKey: "activityLevel", questionKey: "activityLevel", value: "moderate" },
@@ -16,13 +17,15 @@ async function main() {
     body: { flowId: "2117" },
   });
 
-  await request(`/api/sessions/${created.sessionId}/answers`, {
-    method: "PATCH",
-    body: {
-      currentStep: 31,
-      answers,
-    },
-  });
+  for (const [index, answer] of answers.entries()) {
+    await request(`/api/sessions/${created.sessionId}/answers`, {
+      method: "PATCH",
+      body: {
+        currentStep: index + 1,
+        answers: [answer],
+      },
+    });
+  }
 
   await request(`/api/sessions/${created.sessionId}/complete`, {
     method: "POST",
@@ -34,6 +37,7 @@ async function main() {
     method: "POST",
     body: {
       sessionId: created.sessionId,
+      providerEventId: `demo_${created.sessionId}`,
       payload: {
         source: "demo-script",
       },

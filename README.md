@@ -38,9 +38,11 @@ The home page is the working quiz funnel:
 
 ```bash
 DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/postgres"
+PAY_WEBHOOK_SECRET="replace-with-a-shared-webhook-secret"
 ```
 
 Use a server-side PostgreSQL connection string only. Do not expose this value in frontend code.
+`PAY_WEBHOOK_SECRET` is required in production for `/api/pay` signature verification. Local development can omit it for the simulated paywall button.
 
 ## API Flow
 
@@ -95,6 +97,15 @@ Simulate payment:
 curl -X POST http://localhost:3000/api/pay \
   -H "Content-Type: application/json" \
   -d '{"sessionId":"{sessionId}","payload":{"mock":true}}'
+```
+
+Production webhook requests must include an `x-pay-signature` HMAC-SHA256 signature over the raw JSON body using `PAY_WEBHOOK_SECRET`. Include a stable `providerEventId` to make retries idempotent:
+
+```bash
+curl -X POST http://localhost:3000/api/pay \
+  -H "Content-Type: application/json" \
+  -H "x-pay-signature: SIGNATURE_HEX" \
+  -d '{"sessionId":"{sessionId}","providerEventId":"evt_123","payload":{"mock":true}}'
 ```
 
 After payment, `GET /api/results/{sessionId}` returns the full result including recommended calories, target date, detailed recommendations, and projection curve.
@@ -178,6 +189,7 @@ erDiagram
 
   PaymentEvent {
     string id
+    string providerEventId
     string sessionId
     string eventType
     json payload
@@ -200,6 +212,8 @@ Current coverage includes:
 - Invalid age, height, current weight, target weight, and unrealistic target boundaries.
 - Database-backed API flow for session creation, answer persistence, completion, unpaid result gating, `/pay`, and paid result unlocking.
 - Missing required answer behavior for the complete endpoint.
+- Funnel state-machine boundaries for skipped steps and unknown question keys.
+- Payment webhook signature helper behavior and idempotent replay handling.
 
 The API flow tests run when `DATABASE_URL` is available. Without it, they are skipped so CI can be configured incrementally.
 
@@ -207,7 +221,9 @@ The API flow tests run when `DATABASE_URL` is available. Without it, they are sk
 
 - Non-members never receive protected fields such as `projectionCurve` or `detailedRecommendation`.
 - The `/pay` endpoint records a `PaymentEvent` and upgrades the user's subscription to `ACTIVE`.
+- `/api/pay` verifies signed webhook bodies when `PAY_WEBHOOK_SECRET` is configured and uses `providerEventId` as a unique idempotency key.
 - `AssessmentAnswer` uses a unique `(assessmentId, questionKey)` constraint so repeated submissions update the same answer instead of creating duplicates.
+- Funnel answers must follow the configured step order before completion can calculate a result.
 - Health calculations run server-side only and are persisted before the result page is shown.
 
 ## AI Collaboration Notes

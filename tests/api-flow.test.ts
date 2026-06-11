@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 const hasDatabase = Boolean(process.env.DATABASE_URL);
 
 const healthAnswers = [
+  { stepKey: "ageRange", questionKey: "ageRange", value: "30-39" },
   { stepKey: "gender", questionKey: "gender", value: "female" },
   { stepKey: "goal", questionKey: "goal", value: "Lose weight" },
   { stepKey: "activityLevel", questionKey: "activityLevel", value: "moderate" },
@@ -41,21 +42,14 @@ describe.runIf(hasDatabase).sequential("assessment API flow", () => {
       expect(createdResponse.status).toBe(201);
       expect(created.status).toBe("IN_PROGRESS");
 
-      const savedResponse = await saveAnswers(
-        jsonRequest(
-          `http://test.local/api/sessions/${created.sessionId}/answers`,
-          {
-            currentStep: 31,
-            answers: healthAnswers,
-          },
-          "PATCH",
-        ),
+      const saved = await saveAnswersSequentially(
+        saveAnswers,
+        created.sessionId,
         context,
+        healthAnswers,
       );
-      const saved = await savedResponse.json();
 
-      expect(savedResponse.status).toBe(200);
-      expect(saved.answers).toHaveLength(7);
+      expect(saved.answers).toHaveLength(8);
 
       const completedResponse = await completeAssessment(
         new Request(
@@ -89,6 +83,7 @@ describe.runIf(hasDatabase).sequential("assessment API flow", () => {
           "http://test.local/api/pay",
           {
             sessionId: created.sessionId,
+            providerEventId: `test_payment_${created.sessionId}`,
             payload: { test: true },
           },
           "POST",
@@ -97,7 +92,25 @@ describe.runIf(hasDatabase).sequential("assessment API flow", () => {
       const paid = await paidResponse.json();
 
       expect(paidResponse.status).toBe(200);
+      expect(paid.idempotentReplay).toBe(false);
       expect(paid.subscriptionStatus).toBe("ACTIVE");
+
+      const replayResponse = await pay(
+        jsonRequest(
+          "http://test.local/api/pay",
+          {
+            sessionId: created.sessionId,
+            providerEventId: `test_payment_${created.sessionId}`,
+            payload: { test: true },
+          },
+          "POST",
+        ),
+      );
+      const replay = await replayResponse.json();
+
+      expect(replayResponse.status).toBe(200);
+      expect(replay.idempotentReplay).toBe(true);
+      expect(replay.subscriptionStatus).toBe("ACTIVE");
 
       const fullResponse = await getResult(
         new Request(`http://test.local/api/results/${created.sessionId}`),
@@ -135,19 +148,10 @@ describe.runIf(hasDatabase).sequential("assessment API flow", () => {
         params: Promise.resolve({ sessionId: created.sessionId as string }),
       };
 
-      await saveAnswers(
-        jsonRequest(
-          `http://test.local/api/sessions/${created.sessionId}/answers`,
-          {
-            currentStep: 2,
-            answers: [
-              { stepKey: "gender", questionKey: "gender", value: "female" },
-            ],
-          },
-          "PATCH",
-        ),
-        context,
-      );
+      await saveAnswersSequentially(saveAnswers, created.sessionId, context, [
+        { stepKey: "ageRange", questionKey: "ageRange", value: "30-39" },
+        { stepKey: "gender", questionKey: "gender", value: "female" },
+      ]);
 
       const completedResponse = await completeAssessment(
         new Request(
@@ -159,7 +163,85 @@ describe.runIf(hasDatabase).sequential("assessment API flow", () => {
       const completed = await completedResponse.json();
 
       expect(completedResponse.status).toBe(422);
-      expect(completed.error.message).toContain("Missing required answer");
+      expect(completed.error.message).toContain("Missing required funnel steps");
+    },
+    60_000,
+  );
+
+  it(
+    "rejects skipped funnel steps",
+    async () => {
+      const { POST: createSession } = await import(
+        "../src/app/api/sessions/route"
+      );
+      const { PATCH: saveAnswers } = await import(
+        "../src/app/api/sessions/[sessionId]/answers/route"
+      );
+
+      const createdResponse = await createSession(
+        jsonRequest("http://test.local/api/sessions", { flowId: "2117" }),
+      );
+      const created = await createdResponse.json();
+      const context = {
+        params: Promise.resolve({ sessionId: created.sessionId as string }),
+      };
+
+      const skippedResponse = await saveAnswers(
+        jsonRequest(
+          `http://test.local/api/sessions/${created.sessionId}/answers`,
+          {
+            currentStep: 2,
+            answers: [
+              { stepKey: "ageRange", questionKey: "ageRange", value: "30-39" },
+            ],
+          },
+          "PATCH",
+        ),
+        context,
+      );
+      const skipped = await skippedResponse.json();
+
+      expect(skippedResponse.status).toBe(409);
+      expect(skipped.error.message).toContain("Cannot skip");
+    },
+    60_000,
+  );
+
+  it(
+    "rejects unknown answer keys",
+    async () => {
+      const { POST: createSession } = await import(
+        "../src/app/api/sessions/route"
+      );
+      const { PATCH: saveAnswers } = await import(
+        "../src/app/api/sessions/[sessionId]/answers/route"
+      );
+
+      const createdResponse = await createSession(
+        jsonRequest("http://test.local/api/sessions", { flowId: "2117" }),
+      );
+      const created = await createdResponse.json();
+      const context = {
+        params: Promise.resolve({ sessionId: created.sessionId as string }),
+      };
+
+      const invalidResponse = await saveAnswers(
+        jsonRequest(
+          `http://test.local/api/sessions/${created.sessionId}/answers`,
+          {
+            currentStep: 1,
+            answers: [
+              { stepKey: "ageRange", questionKey: "unknown", value: "30-39" },
+            ],
+          },
+          "PATCH",
+        ),
+        context,
+      );
+      const invalid = await invalidResponse.json();
+
+      expect(invalidResponse.status).toBe(422);
+      expect(invalid.error.message).toContain("stepKey must match questionKey");
     },
     60_000,
   );
@@ -179,4 +261,35 @@ function jsonRequest(url: string, body: unknown, method = "POST") {
     },
     body: JSON.stringify(body),
   });
+}
+
+async function saveAnswersSequentially(
+  saveAnswers: (
+    request: Request,
+    context: { params: Promise<{ sessionId: string }> },
+  ) => Promise<Response>,
+  sessionId: string,
+  context: { params: Promise<{ sessionId: string }> },
+  answers: typeof healthAnswers,
+) {
+  let latest: unknown;
+
+  for (const [index, answer] of answers.entries()) {
+    const response = await saveAnswers(
+      jsonRequest(
+        `http://test.local/api/sessions/${sessionId}/answers`,
+        {
+          currentStep: index + 1,
+          answers: [answer],
+        },
+        "PATCH",
+      ),
+      context,
+    );
+
+    expect(response.status).toBe(200);
+    latest = await response.json();
+  }
+
+  return latest as { answers: unknown[] };
 }

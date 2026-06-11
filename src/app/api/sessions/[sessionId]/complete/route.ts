@@ -3,6 +3,7 @@ import {
   AssessmentProfileError,
   extractHealthProfile,
 } from "@/lib/assessment-profile";
+import { assertReadyToComplete, FunnelStateError } from "@/lib/funnel-state";
 import {
   assessHealth,
   HealthAssessmentError,
@@ -48,6 +49,8 @@ export async function POST(_request: Request, context: CompleteRouteContext) {
     if (!assessment) {
       return errorResponse("Session not found", 404);
     }
+
+    assertReadyToComplete(assessment.answers);
 
     const profile = extractHealthProfile(assessment.answers);
     const result = assessHealth(profile);
@@ -123,9 +126,13 @@ export async function POST(_request: Request, context: CompleteRouteContext) {
   } catch (error) {
     if (
       error instanceof AssessmentProfileError ||
-      error instanceof HealthAssessmentError
+      error instanceof HealthAssessmentError ||
+      error instanceof FunnelStateError
     ) {
-      return errorResponse(error.message, 422);
+      return errorResponse(
+        error.message,
+        error instanceof FunnelStateError ? error.status : 422,
+      );
     }
 
     console.error("Failed to complete assessment", error);

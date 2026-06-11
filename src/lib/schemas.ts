@@ -53,6 +53,7 @@ export const saveAnswersSchema = z.object({
 
 export const paySchema = z.object({
   sessionId: z.string().trim().min(1).max(120),
+  providerEventId: z.string().trim().min(1).max(160).optional(),
   eventType: z.string().trim().min(1).max(80).default("PAYMENT_SUCCEEDED"),
   payload: jsonValueSchema.default({}),
 });

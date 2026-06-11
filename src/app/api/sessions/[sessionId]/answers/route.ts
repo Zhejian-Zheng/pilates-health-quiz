@@ -1,4 +1,8 @@
 import { Prisma } from "@/generated/prisma/client";
+import {
+  FunnelStateError,
+  validateAnswerTransition,
+} from "@/lib/funnel-state";
 import { prisma } from "@/lib/prisma";
 import { saveAnswersSchema } from "@/lib/schemas";
 import {
@@ -48,6 +52,12 @@ export async function PATCH(request: Request, context: AnswersRouteContext) {
       return errorResponse("Cannot update a completed assessment", 409);
     }
 
+    validateAnswerTransition(
+      assessment.currentStep,
+      payload.currentStep,
+      payload.answers,
+    );
+
     for (const answer of payload.answers) {
       await prisma.assessmentAnswer.upsert({
         where: {
@@ -92,6 +102,10 @@ export async function PATCH(request: Request, context: AnswersRouteContext) {
   } catch (error) {
     if (error instanceof ZodError) {
       return errorResponse("Invalid answers payload", 400, error.flatten());
+    }
+
+    if (error instanceof FunnelStateError) {
+      return errorResponse(error.message, error.status);
     }
 
     console.error("Failed to save answers", error);

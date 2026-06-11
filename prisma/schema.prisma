@@ -92,9 +92,10 @@ model Subscription {
 }
 
 model PaymentEvent {
-  id        String   @id @default(cuid())
-  sessionId String
-  eventType String
-  payload   Json
-  createdAt DateTime @default(now())
+  id              String   @id @default(cuid())
+  providerEventId String   @unique
+  sessionId       String
+  eventType       String
+  payload         Json
+  createdAt       DateTime @default(now())
 }

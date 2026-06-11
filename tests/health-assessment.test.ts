@@ -26,9 +26,27 @@ describe("assessHealth", () => {
 
     expect(result.bmi).toBe(29.4);
     expect(result.bmiCategory).toBe("OVERWEIGHT");
+    expect(result.bmr).toBe(1520);
+    expect(result.tdee).toBe(2356);
     expect(result.recommendedCalories).toBeGreaterThanOrEqual(1200);
     expect(result.recommendedCalories).toBeLessThan(2200);
     expect(result.detailedRecommendation.weeklyWeightChangeKg).toBe(-0.5);
+    expect(result.detailedRecommendation.report.scenarios).toHaveLength(5);
+    expect(result.detailedRecommendation.report.scenarios[0]).toMatchObject({
+      activityLevel: "sedentary",
+      activityFactor: 1.2,
+      tdee: 1824,
+      mildDeficitCalories: 300,
+      standardDeficitCalories: 304,
+      mildWeeksToTarget: 37,
+      standardWeeksToTarget: 37,
+    });
+    expect(result.detailedRecommendation.report.scenarios[2]).toMatchObject({
+      activityLevel: "moderate",
+      tdee: 2356,
+      mildWeeksToTarget: 37,
+      standardWeeksToTarget: 22,
+    });
     expect(result.projectionCurve).toHaveLength(21);
     expect(result.projectionCurve[0]).toMatchObject({
       week: 0,

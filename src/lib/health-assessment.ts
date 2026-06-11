@@ -23,18 +23,51 @@ export type ProjectionPoint = {
   weightKg: number;
 };
 
+export type FatLossScenario = {
+  activityLevel: ActivityLevel;
+  activityLabel: string;
+  activityFactor: number;
+  tdee: number;
+  mildDeficitCalories: number;
+  standardDeficitCalories: number;
+  mildDailyCalories: number;
+  standardDailyCalories: number;
+  mildWeeksToTarget: number | null;
+  standardWeeksToTarget: number | null;
+  mildTargetDate: string | null;
+  standardTargetDate: string | null;
+};
+
+export type HealthReport = {
+  formula: string;
+  bmr: number;
+  selectedActivityLevel: ActivityLevel;
+  selectedActivityFactor: number;
+  selectedTdee: number;
+  targetWeightDeltaKg: number;
+  fatLossCaloriesPerKg: number;
+  scenarios: FatLossScenario[];
+  notes: string[];
+};
+
 export type HealthAssessment = {
   bmi: number;
   bmiCategory: string;
+  bmr: number;
+  tdee: number;
   recommendedCalories: number;
   targetDate: Date;
   summary: string;
   detailedRecommendation: {
+    bmr: number;
+    tdee: number;
     dailyCalories: number;
     activityLevel: ActivityLevel;
     weeklyWeightChangeKg: number;
     planFocus: string[];
+    report: HealthReport;
   };
+  report: HealthReport;
   projectionCurve: ProjectionPoint[];
 };
 
@@ -53,6 +86,26 @@ const ACTIVITY_FACTORS: Record<ActivityLevel, number> = {
   very_active: 1.9,
 };
 
+const ACTIVITY_LABELS: Record<ActivityLevel, string> = {
+  sedentary: "Sedentary",
+  light: "Light activity",
+  moderate: "Moderate activity",
+  active: "High activity",
+  very_active: "Very high activity",
+};
+
+const ACTIVITY_LEVELS: ActivityLevel[] = [
+  "sedentary",
+  "light",
+  "moderate",
+  "active",
+  "very_active",
+];
+
+const FAT_LOSS_CALORIES_PER_KG = 7700;
+const MILD_DEFICIT = 300;
+const STANDARD_DEFICIT = 500;
+
 export function assessHealth(
   profile: HealthProfileInput,
   now = new Date(),
@@ -63,14 +116,17 @@ export function assessHealth(
   const bmi = roundTo(profile.currentWeightKg / (heightM * heightM), 1);
   const bmiCategory = getBmiCategory(bmi);
   const bmr = calculateBmr(profile);
-  const maintenanceCalories = bmr * ACTIVITY_FACTORS[profile.activityLevel];
+  const selectedActivityFactor = ACTIVITY_FACTORS[profile.activityLevel];
+  const maintenanceCalories = bmr * selectedActivityFactor;
   const weightDeltaKg = profile.targetWeightKg - profile.currentWeightKg;
   const direction = Math.sign(weightDeltaKg);
   const weeklyWeightChangeKg = getWeeklyWeightChangeKg(weightDeltaKg);
-  const calorieAdjustment = direction === 0 ? 0 : direction * 450;
-  const calorieFloor = profile.gender === "male" ? 1500 : 1200;
+  const calorieAdjustment =
+    direction === 0 ? 0 : direction < 0 ? -STANDARD_DEFICIT : 250;
   const recommendedCalories = Math.round(
-    Math.max(calorieFloor, maintenanceCalories + calorieAdjustment),
+    direction < 0
+      ? Math.max(bmr, maintenanceCalories + calorieAdjustment)
+      : maintenanceCalories + calorieAdjustment,
   );
   const weeksToTarget =
     weeklyWeightChangeKg === 0
@@ -83,19 +139,26 @@ export function assessHealth(
     weeklyWeightChangeKg,
     now,
   );
+  const report = buildHealthReport(profile, bmr, now);
 
   return {
     bmi,
     bmiCategory,
+    bmr: Math.round(bmr),
+    tdee: Math.round(maintenanceCalories),
     recommendedCalories,
     targetDate,
     summary: buildSummary(profile, bmi, bmiCategory, targetDate),
     detailedRecommendation: {
+      bmr: Math.round(bmr),
+      tdee: Math.round(maintenanceCalories),
       dailyCalories: recommendedCalories,
       activityLevel: profile.activityLevel,
       weeklyWeightChangeKg: roundTo(weeklyWeightChangeKg, 2),
       planFocus: getPlanFocus(profile),
+      report,
     },
+    report,
     projectionCurve,
   };
 }
@@ -163,6 +226,98 @@ function calculateBmr(profile: HealthProfileInput) {
   }
 
   return base - 78;
+}
+
+function buildHealthReport(
+  profile: HealthProfileInput,
+  bmr: number,
+  now: Date,
+): HealthReport {
+  const targetWeightDeltaKg = roundTo(
+    profile.targetWeightKg - profile.currentWeightKg,
+    1,
+  );
+  const weightToLoseKg = Math.max(
+    0,
+    profile.currentWeightKg - profile.targetWeightKg,
+  );
+
+  return {
+    formula: "Mifflin-St Jeor",
+    bmr: Math.round(bmr),
+    selectedActivityLevel: profile.activityLevel,
+    selectedActivityFactor: ACTIVITY_FACTORS[profile.activityLevel],
+    selectedTdee: Math.round(bmr * ACTIVITY_FACTORS[profile.activityLevel]),
+    targetWeightDeltaKg,
+    fatLossCaloriesPerKg: FAT_LOSS_CALORIES_PER_KG,
+    scenarios: ACTIVITY_LEVELS.map((activityLevel) =>
+      buildFatLossScenario(activityLevel, bmr, weightToLoseKg, now),
+    ),
+    notes: [
+      "BMR uses the Mifflin-St Jeor formula.",
+      "TDEE equals BMR multiplied by the activity factor.",
+      "Fat-loss plans estimate 1kg body-weight reduction as roughly 7700 kcal.",
+      "A mild cut uses a 300 kcal/day deficit; a standard cut uses a 500 kcal/day deficit.",
+      "Daily calories are not set below BMR.",
+    ],
+  };
+}
+
+function buildFatLossScenario(
+  activityLevel: ActivityLevel,
+  bmr: number,
+  weightToLoseKg: number,
+  now: Date,
+): FatLossScenario {
+  const activityFactor = ACTIVITY_FACTORS[activityLevel];
+  const tdee = Math.round(bmr * activityFactor);
+  const mildDailyCalories = Math.round(Math.max(bmr, tdee - MILD_DEFICIT));
+  const standardDailyCalories = Math.round(Math.max(bmr, tdee - STANDARD_DEFICIT));
+  const mildDeficitCalories = Math.max(0, tdee - mildDailyCalories);
+  const standardDeficitCalories = Math.max(0, tdee - standardDailyCalories);
+  const mildWeeksToTarget = calculateWeeksToTarget(
+    weightToLoseKg,
+    mildDeficitCalories,
+  );
+  const standardWeeksToTarget = calculateWeeksToTarget(
+    weightToLoseKg,
+    standardDeficitCalories,
+  );
+
+  return {
+    activityLevel,
+    activityLabel: ACTIVITY_LABELS[activityLevel],
+    activityFactor,
+    tdee,
+    mildDeficitCalories,
+    standardDeficitCalories,
+    mildDailyCalories,
+    standardDailyCalories,
+    mildWeeksToTarget,
+    standardWeeksToTarget,
+    mildTargetDate:
+      mildWeeksToTarget === null
+        ? null
+        : toDateOnly(addDays(now, mildWeeksToTarget * 7)),
+    standardTargetDate:
+      standardWeeksToTarget === null
+        ? null
+        : toDateOnly(addDays(now, standardWeeksToTarget * 7)),
+  };
+}
+
+function calculateWeeksToTarget(weightToLoseKg: number, dailyDeficit: number) {
+  if (weightToLoseKg <= 0) {
+    return 0;
+  }
+
+  if (dailyDeficit <= 0) {
+    return null;
+  }
+
+  return Math.ceil(
+    (weightToLoseKg * FAT_LOSS_CALORIES_PER_KG) / (dailyDeficit * 7),
+  );
 }
 
 function getWeeklyWeightChangeKg(weightDeltaKg: number) {
