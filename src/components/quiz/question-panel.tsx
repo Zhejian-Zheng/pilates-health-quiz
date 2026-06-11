@@ -62,7 +62,7 @@ export function QuestionPanel({
         return;
       }
 
-      if (answer !== undefined) {
+      if (answer !== undefined || question.optional) {
         event.preventDefault();
         onNext();
       }
@@ -70,13 +70,14 @@ export function QuestionPanel({
 
     window.addEventListener("keydown", handleEnterKey);
     return () => window.removeEventListener("keydown", handleEnterKey);
-  }, [answer, isSaving, onNext, onNumberSubmit, question.type]);
+  }, [answer, isSaving, onNext, onNumberSubmit, question.optional, question.type]);
 
   return (
     <div className="animate-[page-rise_0.42s_ease_both]">
       <div>
         <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[#0f766e]">
           {String(t.quizLabel)} · {stepIndex + 1}/{totalSteps}
+          {question.optional ? ` · ${String(t.optional)}` : ""}
         </p>
         <h2 className="mt-4 max-w-3xl text-3xl font-semibold leading-tight text-[#12312c] sm:text-4xl">
           {question.title[language]}
@@ -154,7 +155,7 @@ export function QuestionPanel({
         <span className="text-center text-sm text-[#52746d]">{syncText}</span>
         <button
           className="h-11 rounded-2xl bg-[#0f766e] px-5 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-[#115e59] hover:shadow-lg hover:shadow-[#0f766e]/14 disabled:cursor-not-allowed disabled:bg-[#0f766e]/35"
-          disabled={isSaving || answer === undefined}
+          disabled={isSaving || (!question.optional && answer === undefined)}
           onClick={onNext}
           type="button"
         >
@@ -183,6 +184,14 @@ function getVisualOptionPrefix(questionKey: string, language: Language) {
     ageRange: { en: "Age:", zh: "年龄：" },
     gender: { en: "Gender:", zh: "性别：" },
     goal: { en: "Goal:", zh: "目标：" },
+    sleepQuality: { en: "Sleep:", zh: "睡眠：" },
+    sittingHours: { en: "Sitting:", zh: "久坐：" },
+    bodyConcern: { en: "Focus:", zh: "重点：" },
+    equipment: { en: "Equipment:", zh: "器械：" },
+    pilatesExperience: { en: "Experience:", zh: "经验：" },
+    sessionTime: { en: "Time:", zh: "时长：" },
+    stressLevel: { en: "Stress:", zh: "压力：" },
+    movementLimitation: { en: "Impact:", zh: "低冲击：" },
   };
 
   return labels[questionKey]?.[language] ?? "";

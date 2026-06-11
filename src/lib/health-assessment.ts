@@ -6,6 +6,25 @@ export type ActivityLevel =
   | "moderate"
   | "active"
   | "very_active";
+export type SleepQuality = "poorSleep" | "fairSleep" | "goodSleep";
+export type SittingHours = "sittingLow" | "sittingMedium" | "sittingHigh";
+export type BodyConcern =
+  | "concernPosture"
+  | "concernBack"
+  | "concernCore"
+  | "concernFlexibility";
+export type EquipmentAccess =
+  | "equipmentMat"
+  | "equipmentProps"
+  | "equipmentReformer";
+export type PilatesExperience = "beginner" | "returning" | "experienced";
+export type SessionTime = "timeShort" | "timeMedium" | "timeLong";
+export type StressLevel = "stressLow" | "stressMedium" | "stressHigh";
+export type MovementLimitation =
+  | "limitationNone"
+  | "limitationKnee"
+  | "limitationBack"
+  | "limitationShoulder";
 
 export type HealthProfileInput = {
   gender: Gender;
@@ -15,6 +34,14 @@ export type HealthProfileInput = {
   currentWeightKg: number;
   targetWeightKg: number;
   activityLevel: ActivityLevel;
+  sleepQuality?: SleepQuality;
+  sittingHours?: SittingHours;
+  bodyConcern?: BodyConcern;
+  equipment?: EquipmentAccess;
+  pilatesExperience?: PilatesExperience;
+  sessionTime?: SessionTime;
+  stressLevel?: StressLevel;
+  movementLimitation?: MovementLimitation;
 };
 
 export type ProjectionPoint = {
@@ -259,6 +286,7 @@ function buildHealthReport(
       "Fat-loss plans estimate 1kg body-weight reduction as roughly 7700 kcal.",
       "A mild cut uses a 300 kcal/day deficit; a standard cut uses a 500 kcal/day deficit.",
       "Daily calories are not set below BMR.",
+      ...getOptionalContextNotes(profile),
     ],
   };
 }
@@ -404,7 +432,123 @@ function getPlanFocus(profile: HealthProfileInput) {
     focus.push("strength progression");
   }
 
+  if (profile.sleepQuality === "poorSleep") {
+    focus.push("recovery-first pacing");
+  }
+
+  if (profile.sleepQuality === "fairSleep") {
+    focus.push("balanced recovery days");
+  }
+
+  if (profile.sittingHours === "sittingHigh") {
+    focus.push("desk-posture mobility breaks");
+  }
+
+  if (profile.bodyConcern === "concernPosture") {
+    focus.push("posture alignment");
+  }
+
+  if (profile.bodyConcern === "concernBack") {
+    focus.push("back-friendly core stability");
+  }
+
+  if (profile.bodyConcern === "concernCore") {
+    focus.push("core control");
+  }
+
+  if (profile.bodyConcern === "concernFlexibility") {
+    focus.push("mobility and flexibility");
+  }
+
+  if (profile.equipment === "equipmentMat") {
+    focus.push("mat-only sessions");
+  }
+
+  if (profile.equipment === "equipmentProps") {
+    focus.push("small-prop progressions");
+  }
+
+  if (profile.equipment === "equipmentReformer") {
+    focus.push("reformer-compatible options");
+  }
+
+  if (profile.pilatesExperience === "beginner") {
+    focus.push("foundational technique cues");
+  }
+
+  if (profile.pilatesExperience === "returning") {
+    focus.push("gradual comeback progression");
+  }
+
+  if (profile.pilatesExperience === "experienced") {
+    focus.push("more precise progression options");
+  }
+
+  if (profile.sessionTime === "timeShort") {
+    focus.push("short-session programming");
+  }
+
+  if (profile.sessionTime === "timeLong") {
+    focus.push("longer flow sessions");
+  }
+
+  if (profile.stressLevel === "stressHigh") {
+    focus.push("stress-aware recovery work");
+  }
+
+  if (profile.movementLimitation === "limitationKnee") {
+    focus.push("knee-friendly low-impact options");
+  }
+
+  if (profile.movementLimitation === "limitationBack") {
+    focus.push("back-sensitive movement choices");
+  }
+
+  if (profile.movementLimitation === "limitationShoulder") {
+    focus.push("shoulder-friendly upper-body options");
+  }
+
   return focus;
+}
+
+function getOptionalContextNotes(profile: HealthProfileInput) {
+  const notes: string[] = [];
+
+  if (profile.sleepQuality) {
+    notes.push(`Recovery pacing is adjusted for sleep context: ${profile.sleepQuality}.`);
+  }
+
+  if (profile.sittingHours) {
+    notes.push(`Mobility emphasis considers daily sitting time: ${profile.sittingHours}.`);
+  }
+
+  if (profile.bodyConcern) {
+    notes.push(`Training focus includes the user's selected concern: ${profile.bodyConcern}.`);
+  }
+
+  if (profile.equipment) {
+    notes.push(`Exercise selection considers available equipment: ${profile.equipment}.`);
+  }
+
+  if (profile.pilatesExperience) {
+    notes.push(`Exercise progression considers Pilates experience: ${profile.pilatesExperience}.`);
+  }
+
+  if (profile.sessionTime) {
+    notes.push(`Session length is adjusted for available time: ${profile.sessionTime}.`);
+  }
+
+  if (profile.stressLevel) {
+    notes.push(`Intensity balance considers current stress level: ${profile.stressLevel}.`);
+  }
+
+  if (profile.movementLimitation && profile.movementLimitation !== "limitationNone") {
+    notes.push(
+      `Low-impact alternatives consider movement limitation: ${profile.movementLimitation}.`,
+    );
+  }
+
+  return notes;
 }
 
 function addDays(date: Date, days: number) {

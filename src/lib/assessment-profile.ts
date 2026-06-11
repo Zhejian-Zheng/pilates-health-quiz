@@ -1,7 +1,15 @@
 import {
   type ActivityLevel,
+  type BodyConcern,
+  type EquipmentAccess,
   type Gender,
   type HealthProfileInput,
+  type MovementLimitation,
+  type PilatesExperience,
+  type SittingHours,
+  type SleepQuality,
+  type SessionTime,
+  type StressLevel,
 } from "@/lib/health-assessment";
 
 type AnswerLike = {
@@ -18,6 +26,14 @@ const FIELD_ALIASES = {
   currentWeightKg: ["currentWeightKg", "currentWeight", "weight"],
   targetWeightKg: ["targetWeightKg", "targetWeight", "goalWeight"],
   activityLevel: ["activityLevel", "fitnessLevel", "activities", "exerciseFrequency"],
+  sleepQuality: ["sleepQuality"],
+  sittingHours: ["sittingHours"],
+  bodyConcern: ["bodyConcern"],
+  equipment: ["equipment"],
+  pilatesExperience: ["pilatesExperience"],
+  sessionTime: ["sessionTime"],
+  stressLevel: ["stressLevel"],
+  movementLimitation: ["movementLimitation"],
 };
 
 export class AssessmentProfileError extends Error {
@@ -56,6 +72,43 @@ export function extractHealthProfile(
     activityLevel: normalizeActivityLevel(
       readRequired(answerMap, FIELD_ALIASES.activityLevel),
     ),
+    sleepQuality: normalizeOptionalEnum(
+      readOptional(answerMap, FIELD_ALIASES.sleepQuality),
+      ["poorSleep", "fairSleep", "goodSleep"],
+    ) as SleepQuality | undefined,
+    sittingHours: normalizeOptionalEnum(
+      readOptional(answerMap, FIELD_ALIASES.sittingHours),
+      ["sittingLow", "sittingMedium", "sittingHigh"],
+    ) as SittingHours | undefined,
+    bodyConcern: normalizeOptionalEnum(
+      readOptional(answerMap, FIELD_ALIASES.bodyConcern),
+      ["concernPosture", "concernBack", "concernCore", "concernFlexibility"],
+    ) as BodyConcern | undefined,
+    equipment: normalizeOptionalEnum(
+      readOptional(answerMap, FIELD_ALIASES.equipment),
+      ["equipmentMat", "equipmentProps", "equipmentReformer"],
+    ) as EquipmentAccess | undefined,
+    pilatesExperience: normalizeOptionalEnum(
+      readOptional(answerMap, FIELD_ALIASES.pilatesExperience),
+      ["beginner", "returning", "experienced"],
+    ) as PilatesExperience | undefined,
+    sessionTime: normalizeOptionalEnum(
+      readOptional(answerMap, FIELD_ALIASES.sessionTime),
+      ["timeShort", "timeMedium", "timeLong"],
+    ) as SessionTime | undefined,
+    stressLevel: normalizeOptionalEnum(
+      readOptional(answerMap, FIELD_ALIASES.stressLevel),
+      ["stressLow", "stressMedium", "stressHigh"],
+    ) as StressLevel | undefined,
+    movementLimitation: normalizeOptionalEnum(
+      readOptional(answerMap, FIELD_ALIASES.movementLimitation),
+      [
+        "limitationNone",
+        "limitationKnee",
+        "limitationBack",
+        "limitationShoulder",
+      ],
+    ) as MovementLimitation | undefined,
   };
 }
 
@@ -67,6 +120,16 @@ function readRequired(answerMap: Map<string, unknown>, keys: string[]) {
   }
 
   throw new AssessmentProfileError(`Missing required answer: ${keys[0]}`);
+}
+
+function readOptional(answerMap: Map<string, unknown>, keys: string[]) {
+  for (const key of keys) {
+    if (answerMap.has(key)) {
+      return answerMap.get(key);
+    }
+  }
+
+  return undefined;
 }
 
 function normalizeString(value: unknown, fieldName: string) {
@@ -165,6 +228,26 @@ function normalizeActivityLevel(value: unknown): ActivityLevel {
   }
 
   return "moderate";
+}
+
+function normalizeOptionalEnum(value: unknown, allowedValues: string[]) {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  const scalar = unwrapAnswerValue(value);
+
+  if (scalar === "optionalUnsure") {
+    return undefined;
+  }
+
+  if (typeof scalar !== "string" || !allowedValues.includes(scalar)) {
+    throw new AssessmentProfileError(
+      `Optional answer must be one of: ${[...allowedValues, "optionalUnsure"].join(", ")}`,
+    );
+  }
+
+  return scalar;
 }
 
 function unwrapAnswerValue(value: unknown): unknown {

@@ -8,7 +8,15 @@ export type FunnelStepKey =
   | "heightCm"
   | "currentWeightKg"
   | "targetWeightKg"
-  | "age";
+  | "age"
+  | "sleepQuality"
+  | "sittingHours"
+  | "bodyConcern"
+  | "equipment"
+  | "pilatesExperience"
+  | "sessionTime"
+  | "stressLevel"
+  | "movementLimitation";
 
 export type FunnelAnswerInput = {
   stepKey: string;
@@ -35,6 +43,14 @@ export const FUNNEL_STEPS: readonly FunnelStepKey[] = [
   "currentWeightKg",
   "targetWeightKg",
   "age",
+  "sleepQuality",
+  "sittingHours",
+  "bodyConcern",
+  "equipment",
+  "pilatesExperience",
+  "sessionTime",
+  "stressLevel",
+  "movementLimitation",
 ];
 
 export const REQUIRED_HEALTH_STEPS: readonly FunnelStepKey[] = [
@@ -50,6 +66,16 @@ export const REQUIRED_HEALTH_STEPS: readonly FunnelStepKey[] = [
 const STEP_INDEX = new Map(
   FUNNEL_STEPS.map((stepKey, index) => [stepKey, index] as const),
 );
+const OPTIONAL_STEPS = new Set<FunnelStepKey>([
+  "sleepQuality",
+  "sittingHours",
+  "bodyConcern",
+  "equipment",
+  "pilatesExperience",
+  "sessionTime",
+  "stressLevel",
+  "movementLimitation",
+]);
 
 export function validateAnswerTransition(
   currentStep: number,
@@ -86,7 +112,7 @@ export function validateAnswerTransition(
   }
 
   if (requestedStep !== undefined) {
-    if (requestedStep < reachableStep) {
+    if (requestedStep < currentStep) {
       throw new FunnelStateError("currentStep cannot move backwards", 409);
     }
 
@@ -103,7 +129,7 @@ function getSequentialAnsweredCount(answerKeys: string[]) {
   let count = 0;
 
   for (const stepKey of FUNNEL_STEPS) {
-    if (!answered.has(stepKey)) {
+    if (!answered.has(stepKey) && !OPTIONAL_STEPS.has(stepKey)) {
       break;
     }
 

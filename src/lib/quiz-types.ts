@@ -14,6 +14,7 @@ export type Question =
       key: string;
       title: Record<Language, string>;
       helper?: Record<Language, string>;
+      optional?: boolean;
       type: "single";
       options: {
         label: Record<Language, string>;
@@ -24,6 +25,7 @@ export type Question =
       key: string;
       title: Record<Language, string>;
       helper?: Record<Language, string>;
+      optional?: boolean;
       type: "number";
       suffix: Record<Language, string>;
       min: number;

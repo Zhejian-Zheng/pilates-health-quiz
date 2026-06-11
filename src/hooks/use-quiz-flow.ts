@@ -61,17 +61,7 @@ export function useQuizFlow() {
     ? 100
     : Math.round((answeredQuestionCount / questions.length) * 100);
   const remainingQuestionCount = questions.length - answeredQuestionCount;
-  const highestAnsweredStep = questions.reduce(
-    (highestStep, question, index) =>
-      answers[question.key] === undefined
-        ? highestStep
-        : Math.max(highestStep, index + 1),
-    0,
-  );
-  const reachableStep = Math.min(
-    questions.length,
-    Math.max(currentStep, highestAnsweredStep),
-  );
+  const reachableStep = getReachableStep(answers, currentStep);
 
   useEffect(() => {
     async function restoreProgress() {
@@ -597,4 +587,22 @@ function getGuestProfile(): AuthProfile {
     mode: "guest",
     displayName: "Guest",
   };
+}
+
+function getReachableStep(
+  answers: Record<string, AnswerValue>,
+  currentStep: number,
+) {
+  let reachableStep = 0;
+
+  for (const [index, question] of questions.entries()) {
+    if (answers[question.key] !== undefined || question.optional) {
+      reachableStep = index + 1;
+      continue;
+    }
+
+    break;
+  }
+
+  return Math.min(questions.length, Math.max(currentStep, reachableStep));
 }

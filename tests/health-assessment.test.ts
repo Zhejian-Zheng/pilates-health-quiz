@@ -74,6 +74,39 @@ describe("assessHealth", () => {
     );
   });
 
+  it("uses optional context to personalize the full plan focus", () => {
+    const result = assessHealth({
+      ...baseProfile,
+      sleepQuality: "poorSleep",
+      sittingHours: "sittingHigh",
+      bodyConcern: "concernBack",
+      equipment: "equipmentMat",
+      pilatesExperience: "beginner",
+      sessionTime: "timeShort",
+      stressLevel: "stressHigh",
+      movementLimitation: "limitationKnee",
+    });
+
+    expect(result.detailedRecommendation.planFocus).toEqual(
+      expect.arrayContaining([
+        "recovery-first pacing",
+        "desk-posture mobility breaks",
+        "back-friendly core stability",
+        "mat-only sessions",
+        "foundational technique cues",
+        "short-session programming",
+        "stress-aware recovery work",
+        "knee-friendly low-impact options",
+      ]),
+    );
+    expect(result.detailedRecommendation.report.notes).toEqual(
+      expect.arrayContaining([
+        "Recovery pacing is adjusted for sleep context: poorSleep.",
+        "Exercise selection considers available equipment: equipmentMat.",
+      ]),
+    );
+  });
+
   it.each([
     ["age", { age: 8 }],
     ["height", { heightCm: 80 }],

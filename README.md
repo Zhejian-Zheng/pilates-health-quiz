@@ -38,10 +38,11 @@ The home page is the working quiz funnel:
 
 1. Select an age range to create an anonymous session.
 2. Answer gender, goal, activity level, height, current weight, target weight, and exact age.
-3. Each step is saved to the backend immediately.
-4. Refreshing the browser restores progress from the saved `sessionId`.
-5. Completing the quiz calculates and stores the result on the server.
-6. The result is locked for non-members and unlocked after the simulated `/api/pay` callback.
+3. Optionally answer recovery and personalization questions such as sleep, sitting time, body focus, available equipment, Pilates experience, session length, stress level, and low-impact needs. Each optional question includes a "Not sure / skip" answer.
+4. Each step is saved to the backend immediately.
+5. Refreshing the browser restores progress from the saved `sessionId`.
+6. Completing the quiz calculates and stores the result on the server.
+7. The result is locked for non-members and unlocked after the simulated `/api/pay` callback.
 
 ## Environment Variables
 

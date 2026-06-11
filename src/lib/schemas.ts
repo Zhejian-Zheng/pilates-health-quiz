@@ -93,6 +93,72 @@ export function validateAnswerValues(answers: z.infer<typeof saveAnswersSchema>[
       case "age":
         assertIntegerInRange(value, "age", 13, 100);
         break;
+      case "sleepQuality":
+        assertStringInSet(value, "sleepQuality", [
+          "poorSleep",
+          "fairSleep",
+          "goodSleep",
+          "optionalUnsure",
+        ]);
+        break;
+      case "sittingHours":
+        assertStringInSet(value, "sittingHours", [
+          "sittingLow",
+          "sittingMedium",
+          "sittingHigh",
+          "optionalUnsure",
+        ]);
+        break;
+      case "bodyConcern":
+        assertStringInSet(value, "bodyConcern", [
+          "concernPosture",
+          "concernBack",
+          "concernCore",
+          "concernFlexibility",
+          "optionalUnsure",
+        ]);
+        break;
+      case "equipment":
+        assertStringInSet(value, "equipment", [
+          "equipmentMat",
+          "equipmentProps",
+          "equipmentReformer",
+          "optionalUnsure",
+        ]);
+        break;
+      case "pilatesExperience":
+        assertStringInSet(value, "pilatesExperience", [
+          "beginner",
+          "returning",
+          "experienced",
+          "optionalUnsure",
+        ]);
+        break;
+      case "sessionTime":
+        assertStringInSet(value, "sessionTime", [
+          "timeShort",
+          "timeMedium",
+          "timeLong",
+          "optionalUnsure",
+        ]);
+        break;
+      case "stressLevel":
+        assertStringInSet(value, "stressLevel", [
+          "stressLow",
+          "stressMedium",
+          "stressHigh",
+          "optionalUnsure",
+        ]);
+        break;
+      case "movementLimitation":
+        assertStringInSet(value, "movementLimitation", [
+          "limitationNone",
+          "limitationKnee",
+          "limitationBack",
+          "limitationShoulder",
+          "optionalUnsure",
+        ]);
+        break;
       default:
         break;
     }
@@ -133,6 +199,14 @@ function assertIntegerInRange(
   ) {
     throw new AnswerValueValidationError(
       `${fieldName} must be an integer between ${min} and ${max}`,
+    );
+  }
+}
+
+function assertStringInSet(value: unknown, fieldName: string, allowedValues: string[]) {
+  if (typeof value !== "string" || !allowedValues.includes(value)) {
+    throw new AnswerValueValidationError(
+      `${fieldName} must be one of: ${allowedValues.join(", ")}`,
     );
   }
 }

@@ -54,6 +54,32 @@ describe("validateAnswerTransition", () => {
       ]),
     ).toThrow(FunnelStateError);
   });
+
+  it("allows optional steps to be skipped after required steps are answered", () => {
+    expect(() =>
+      validateAnswerTransition(
+        8,
+        11,
+        [
+          {
+            stepKey: "bodyConcern",
+            questionKey: "bodyConcern",
+            value: "concernBack",
+          },
+        ],
+        [
+          "ageRange",
+          "gender",
+          "goal",
+          "activityLevel",
+          "heightCm",
+          "currentWeightKg",
+          "targetWeightKg",
+          "age",
+        ],
+      ),
+    ).not.toThrow();
+  });
 });
 
 describe("assertReadyToComplete", () => {
