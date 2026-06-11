@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "demo:paid-session": "node scripts/create-paid-demo-session.mjs"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",
