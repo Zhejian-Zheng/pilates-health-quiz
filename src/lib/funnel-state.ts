@@ -55,8 +55,13 @@ export function validateAnswerTransition(
   currentStep: number,
   requestedStep: number | undefined,
   answers: FunnelAnswerInput[],
+  savedAnswerKeys: string[] = [],
 ) {
   const uniqueAnswerSteps = new Set<FunnelStepKey>();
+  const reachableStep = Math.max(
+    currentStep,
+    getSequentialAnsweredCount(savedAnswerKeys),
+  );
 
   for (const answer of answers) {
     if (answer.stepKey !== answer.questionKey) {
@@ -70,7 +75,7 @@ export function validateAnswerTransition(
       throw new FunnelStateError(`Unknown funnel step: ${answer.questionKey}`);
     }
 
-    if (stepIndex > currentStep) {
+    if (stepIndex > reachableStep) {
       throw new FunnelStateError(
         `Cannot submit ${answer.questionKey} before reaching that step`,
         409,
@@ -81,16 +86,31 @@ export function validateAnswerTransition(
   }
 
   if (requestedStep !== undefined) {
-    if (requestedStep < currentStep) {
+    if (requestedStep < reachableStep) {
       throw new FunnelStateError("currentStep cannot move backwards", 409);
     }
 
-    const maxAdvance = currentStep + uniqueAnswerSteps.size;
+    const maxAdvance = reachableStep + uniqueAnswerSteps.size;
 
     if (requestedStep > maxAdvance) {
       throw new FunnelStateError("Cannot skip unanswered funnel steps", 409);
     }
   }
+}
+
+function getSequentialAnsweredCount(answerKeys: string[]) {
+  const answered = new Set(answerKeys);
+  let count = 0;
+
+  for (const stepKey of FUNNEL_STEPS) {
+    if (!answered.has(stepKey)) {
+      break;
+    }
+
+    count += 1;
+  }
+
+  return count;
 }
 
 export function assertReadyToComplete(

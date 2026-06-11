@@ -208,6 +208,62 @@ describe.runIf(hasDatabase).sequential("assessment API flow", () => {
   );
 
   it(
+    "accepts the next answer when saved answers are ahead of currentStep",
+    async () => {
+      const { POST: createSession } = await import(
+        "../src/app/api/sessions/route"
+      );
+      const { PATCH: saveAnswers } = await import(
+        "../src/app/api/sessions/[sessionId]/answers/route"
+      );
+      const { prisma } = await import("../src/lib/prisma");
+
+      const createdResponse = await createSession(
+        jsonRequest("http://test.local/api/sessions", { flowId: "2117" }),
+      );
+      const created = await createdResponse.json();
+      const context = {
+        params: Promise.resolve({ sessionId: created.sessionId as string }),
+      };
+
+      const user = await prisma.user.findUniqueOrThrow({
+        where: { sessionId: created.sessionId },
+        select: { assessments: { select: { id: true }, take: 1 } },
+      });
+      const assessmentId = user.assessments[0].id;
+
+      await prisma.assessmentAnswer.createMany({
+        data: healthAnswers.slice(0, 4).map((answer) => ({
+          assessmentId,
+          stepKey: answer.stepKey,
+          questionKey: answer.questionKey,
+          value: answer.value,
+        })),
+      });
+
+      const response = await saveAnswers(
+        jsonRequest(
+          `http://test.local/api/sessions/${created.sessionId}/answers`,
+          {
+            currentStep: 5,
+            answers: [
+              { stepKey: "heightCm", questionKey: "heightCm", value: 165 },
+            ],
+          },
+          "PATCH",
+        ),
+        context,
+      );
+      const saved = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(saved.currentStep).toBe(5);
+      expect(saved.answers).toHaveLength(5);
+    },
+    60_000,
+  );
+
+  it(
     "rejects unknown answer keys",
     async () => {
       const { POST: createSession } = await import(
@@ -242,6 +298,52 @@ describe.runIf(hasDatabase).sequential("assessment API flow", () => {
 
       expect(invalidResponse.status).toBe(422);
       expect(invalid.error.message).toContain("stepKey must match questionKey");
+    },
+    60_000,
+  );
+
+  it(
+    "rejects out-of-range saved answer values",
+    async () => {
+      const { POST: createSession } = await import(
+        "../src/app/api/sessions/route"
+      );
+      const { PATCH: saveAnswers } = await import(
+        "../src/app/api/sessions/[sessionId]/answers/route"
+      );
+
+      const createdResponse = await createSession(
+        jsonRequest("http://test.local/api/sessions", { flowId: "2117" }),
+      );
+      const created = await createdResponse.json();
+      const context = {
+        params: Promise.resolve({ sessionId: created.sessionId as string }),
+      };
+
+      await saveAnswersSequentially(saveAnswers, created.sessionId, context, [
+        { stepKey: "ageRange", questionKey: "ageRange", value: "30-39" },
+        { stepKey: "gender", questionKey: "gender", value: "female" },
+        { stepKey: "goal", questionKey: "goal", value: "Lose weight" },
+        { stepKey: "activityLevel", questionKey: "activityLevel", value: "moderate" },
+      ]);
+
+      const invalidResponse = await saveAnswers(
+        jsonRequest(
+          `http://test.local/api/sessions/${created.sessionId}/answers`,
+          {
+            currentStep: 5,
+            answers: [
+              { stepKey: "heightCm", questionKey: "heightCm", value: 17 },
+            ],
+          },
+          "PATCH",
+        ),
+        context,
+      );
+      const invalid = await invalidResponse.json();
+
+      expect(invalidResponse.status).toBe(422);
+      expect(invalid.error.message).toContain("heightCm");
     },
     60_000,
   );

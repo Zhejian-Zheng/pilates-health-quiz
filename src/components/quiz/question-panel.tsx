@@ -1,9 +1,10 @@
+import { useEffect } from "react";
+
 import { copy } from "@/lib/quiz-content";
 import type {
   AnswerValue,
   Language,
   Question,
-  QuestionImage,
   SyncStatus,
 } from "@/lib/quiz-types";
 
@@ -37,6 +38,7 @@ export function QuestionPanel({
   totalSteps: number;
 }) {
   const t = copy[language];
+  const visualOptionPrefix = getVisualOptionPrefix(question.key, language);
   const syncText = {
     idle: String(t.syncIdle),
     syncing: String(t.syncing),
@@ -44,10 +46,36 @@ export function QuestionPanel({
     error: String(t.syncError),
   }[syncStatus];
 
+  useEffect(() => {
+    function handleEnterKey(event: KeyboardEvent) {
+      if (event.key !== "Enter" || event.isComposing || isSaving) {
+        return;
+      }
+
+      if (event.target instanceof HTMLButtonElement) {
+        return;
+      }
+
+      if (question.type === "number") {
+        event.preventDefault();
+        onNumberSubmit();
+        return;
+      }
+
+      if (answer !== undefined) {
+        event.preventDefault();
+        onNext();
+      }
+    }
+
+    window.addEventListener("keydown", handleEnterKey);
+    return () => window.removeEventListener("keydown", handleEnterKey);
+  }, [answer, isSaving, onNext, onNumberSubmit, question.type]);
+
   return (
     <div className="animate-[page-rise_0.42s_ease_both]">
       <div>
-        <p className="text-sm font-semibold uppercase tracking-[0.14em] text-[#3c8786]">
+        <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[#3c8786]">
           {String(t.quizLabel)} · {stepIndex + 1}/{totalSteps}
         </p>
         <h2 className="mt-4 max-w-3xl text-3xl font-semibold leading-tight text-[#171717] sm:text-4xl">
@@ -60,18 +88,14 @@ export function QuestionPanel({
         ) : null}
       </div>
 
-      {question.image ? (
-        <QuestionVisual image={question.image} language={language} />
-      ) : null}
-
       {question.type === "single" ? (
-        <div className="mt-6 grid gap-3 sm:grid-cols-2">
+        <div className={`mt-7 grid gap-4 ${getOptionGridClass(question.options.length)}`}>
           {question.options.map((option, index) => (
             <button
-              className={`group flex min-h-20 items-center justify-between gap-4 rounded-2xl border px-5 py-4 text-left text-base font-semibold transition duration-300 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/8 ${
+              className={`group flex min-h-24 items-center justify-between gap-4 rounded-2xl border px-5 py-5 text-left text-base font-semibold transition duration-300 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/8 ${
                 answer === option.value
-                  ? "border-[#3c8786] bg-[#e9f4f2] text-[#205c5a]"
-                  : "border-black/10 bg-white/82 text-black/78 hover:border-[#3c8786]/50 hover:bg-white"
+                  ? "border-[#171717] bg-[#171717] text-white shadow-lg shadow-black/12"
+                  : "border-black/10 bg-white/86 text-black/78 hover:border-[#3c8786]/50 hover:bg-white"
               }`}
               disabled={isSaving}
               key={option.value}
@@ -79,9 +103,15 @@ export function QuestionPanel({
               style={{ animationDelay: `${index * 55}ms` }}
               type="button"
             >
-              <span className="min-w-0 leading-6">{option.label[language]}</span>
-              <span className="shrink-0 rounded-full bg-black/[0.04] px-3 py-1 text-xs text-black/42 transition group-hover:bg-[#3c8786]/10">
-                {answer === option.value ? String(t.selected) : String(t.choose)}
+              <span className="min-w-0 leading-6">
+                {visualOptionPrefix} {option.label[language]}
+              </span>
+              <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-[10px] font-bold transition ${
+                answer === option.value
+                  ? "border-white bg-white text-[#171717]"
+                  : "border-black/14 bg-black/[0.03] text-transparent group-hover:border-[#3c8786]/40"
+              }`}>
+                ✓
               </span>
             </button>
           ))}
@@ -135,31 +165,25 @@ export function QuestionPanel({
   );
 }
 
-function QuestionVisual({
-  image,
-  language,
-}: {
-  image: QuestionImage;
-  language: Language;
-}) {
-  return (
-    <figure className="mt-6 grid overflow-hidden rounded-[20px] border border-black/8 bg-[#171717] text-white shadow-lg shadow-black/8 sm:grid-cols-[220px_minmax(0,1fr)]">
-      <div
-        aria-label={image.alt[language]}
-        className="h-40 bg-cover bg-center sm:h-full"
-        role="img"
-        style={{
-          backgroundImage: `linear-gradient(180deg,rgba(23,23,23,0.04),rgba(23,23,23,0.18)),url('${image.src}')`,
-        }}
-      />
-      <figcaption className="flex min-h-28 flex-col justify-center px-5 py-4">
-        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-white/42">
-          {language === "zh" ? "说明" : "Context"}
-        </p>
-        <p className="mt-2 text-sm font-medium leading-6 text-white/78">
-          {image.caption?.[language] ?? image.alt[language]}
-        </p>
-      </figcaption>
-    </figure>
-  );
+function getOptionGridClass(optionCount: number) {
+  if (optionCount === 3) {
+    return "sm:grid-cols-3";
+  }
+
+  if (optionCount === 4) {
+    return "sm:grid-cols-2";
+  }
+
+  return "sm:grid-cols-2";
+}
+
+function getVisualOptionPrefix(questionKey: string, language: Language) {
+  const labels: Record<string, Record<Language, string>> = {
+    activityLevel: { en: "Activity:", zh: "运动：" },
+    ageRange: { en: "Age:", zh: "年龄：" },
+    gender: { en: "Gender:", zh: "性别：" },
+    goal: { en: "Goal:", zh: "目标：" },
+  };
+
+  return labels[questionKey]?.[language] ?? "";
 }

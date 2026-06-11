@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import {
+  AUTH_STORAGE_KEY,
   copy,
   LANGUAGE_STORAGE_KEY,
   questions,
@@ -10,6 +11,8 @@ import {
 } from "@/lib/quiz-content";
 import type {
   AnswerValue,
+  AuthMode,
+  AuthProfile,
   Language,
   Question,
   ResultResponse,
@@ -25,6 +28,13 @@ export function useQuizFlow() {
 
     const storedLanguage = window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
     return storedLanguage === "zh" ? "zh" : "en";
+  });
+  const [authProfile, setAuthProfile] = useState<AuthProfile | null>(() => {
+    if (typeof window === "undefined") {
+      return null;
+    }
+
+    return readStoredAuthProfile();
   });
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState(0);
@@ -71,6 +81,12 @@ export function useQuizFlow() {
         return;
       }
 
+      if (!readStoredAuthProfile()) {
+        const guestProfile = getGuestProfile();
+        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(guestProfile));
+        setAuthProfile(guestProfile);
+      }
+
       try {
         const response = await fetch(`/api/sessions/${storedSessionId}`);
 
@@ -110,6 +126,44 @@ export function useQuizFlow() {
   function changeLanguage(nextLanguage: Language) {
     setLanguage(nextLanguage);
     localStorage.setItem(LANGUAGE_STORAGE_KEY, nextLanguage);
+  }
+
+  function continueAsGuest() {
+    const guestProfile = getGuestProfile();
+    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(guestProfile));
+    setAuthProfile(guestProfile);
+    setError(null);
+  }
+
+  function submitAuth(
+    mode: Exclude<AuthMode, "guest">,
+    credentials: { displayName?: string; email: string; password: string },
+  ) {
+    const email = credentials.email.trim();
+
+    if (!email.includes("@") || credentials.password.length < 6) {
+      setError(String(t.authInvalid));
+      return;
+    }
+
+    const profile: AuthProfile = {
+      mode,
+      displayName:
+        mode === "register"
+          ? credentials.displayName?.trim() || email.split("@")[0]
+          : email.split("@")[0],
+      email,
+    };
+
+    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(profile));
+    setAuthProfile(profile);
+    setError(null);
+  }
+
+  function returnHome() {
+    localStorage.removeItem(AUTH_STORAGE_KEY);
+    setAuthProfile(null);
+    setError(null);
   }
 
   async function ensureSession() {
@@ -160,7 +214,10 @@ export function useQuizFlow() {
     }));
     setCurrentStep(nextStep);
 
-    const savePromise = persistAnswer(question, value, nextStep);
+    const precedingSaves = [...pendingSavesRef.current];
+    const savePromise = Promise.allSettled(precedingSaves).then(() =>
+      persistAnswer(question, value, nextStep),
+    );
     trackPendingSave(savePromise);
   }
 
@@ -393,18 +450,23 @@ export function useQuizFlow() {
   return {
     actions: {
       changeLanguage,
+      clearError: () => setError(null),
       completeAssessment,
+      continueAsGuest,
       goBack,
       goNext,
       goToStep,
+      returnHome,
       saveAnswer,
       setNumberDrafts,
       startOver,
+      submitAuth,
       submitNumberAnswer,
       unlockResult,
     },
     state: {
       answers,
+      authProfile,
       currentQuestion,
       currentStep,
       error,
@@ -420,5 +482,37 @@ export function useQuizFlow() {
       syncStatus,
       visualProgress,
     },
+  };
+}
+
+function readStoredAuthProfile() {
+  const storedAuth = window.localStorage.getItem(AUTH_STORAGE_KEY);
+
+  if (!storedAuth) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(storedAuth) as Partial<AuthProfile>;
+
+    if (
+      (parsed.mode === "guest" ||
+        parsed.mode === "login" ||
+        parsed.mode === "register") &&
+      typeof parsed.displayName === "string"
+    ) {
+      return parsed as AuthProfile;
+    }
+  } catch {
+    window.localStorage.removeItem(AUTH_STORAGE_KEY);
+  }
+
+  return null;
+}
+
+function getGuestProfile(): AuthProfile {
+  return {
+    mode: "guest",
+    displayName: "Guest",
   };
 }

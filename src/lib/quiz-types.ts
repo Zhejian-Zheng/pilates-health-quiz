@@ -1,11 +1,12 @@
 export type Language = "en" | "zh";
 export type AnswerValue = string | number;
 export type SyncStatus = "idle" | "syncing" | "saved" | "error";
+export type AuthMode = "guest" | "login" | "register";
 
-export type QuestionImage = {
-  src: string;
-  alt: Record<Language, string>;
-  caption?: Record<Language, string>;
+export type AuthProfile = {
+  mode: AuthMode;
+  displayName: string;
+  email?: string;
 };
 
 export type Question =
@@ -13,15 +14,16 @@ export type Question =
       key: string;
       title: Record<Language, string>;
       helper?: Record<Language, string>;
-      image?: QuestionImage;
       type: "single";
-      options: { label: Record<Language, string>; value: string }[];
+      options: {
+        label: Record<Language, string>;
+        value: string;
+      }[];
     }
   | {
       key: string;
       title: Record<Language, string>;
       helper?: Record<Language, string>;
-      image?: QuestionImage;
       type: "number";
       suffix: Record<Language, string>;
       min: number;

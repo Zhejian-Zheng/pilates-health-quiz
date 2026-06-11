@@ -4,7 +4,11 @@ import {
   validateAnswerTransition,
 } from "@/lib/funnel-state";
 import { prisma } from "@/lib/prisma";
-import { saveAnswersSchema } from "@/lib/schemas";
+import {
+  AnswerValueValidationError,
+  saveAnswersSchema,
+  validateAnswerValues,
+} from "@/lib/schemas";
 import {
   errorResponse,
   getLatestSessionProgress,
@@ -24,6 +28,7 @@ export async function PATCH(request: Request, context: AnswersRouteContext) {
   try {
     const { sessionId } = await context.params;
     const payload = saveAnswersSchema.parse(await request.json());
+    validateAnswerValues(payload.answers);
 
     const user = await prisma.user.findUnique({
       where: { sessionId },
@@ -37,6 +42,11 @@ export async function PATCH(request: Request, context: AnswersRouteContext) {
             id: true,
             status: true,
             currentStep: true,
+            answers: {
+              select: {
+                questionKey: true,
+              },
+            },
           },
         },
       },
@@ -56,6 +66,7 @@ export async function PATCH(request: Request, context: AnswersRouteContext) {
       assessment.currentStep,
       payload.currentStep,
       payload.answers,
+      assessment.answers.map((answer) => answer.questionKey),
     );
 
     for (const answer of payload.answers) {
@@ -106,6 +117,10 @@ export async function PATCH(request: Request, context: AnswersRouteContext) {
 
     if (error instanceof FunnelStateError) {
       return errorResponse(error.message, error.status);
+    }
+
+    if (error instanceof AnswerValueValidationError) {
+      return errorResponse(error.message, 422);
     }
 
     console.error("Failed to save answers", error);

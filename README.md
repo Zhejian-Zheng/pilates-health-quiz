@@ -23,6 +23,15 @@ npm run dev
 
 The app runs at `http://localhost:3000`.
 
+## Submission Links
+
+Fill these in after deployment:
+
+- Public demo URL: `TODO`
+- GitHub repository: `TODO`
+- Paid test sessionId: `TODO`
+- CI status: GitHub Actions workflow in `.github/workflows/ci.yml`
+
 ## User Flow
 
 The home page is the working quiz funnel:
@@ -60,18 +69,14 @@ Save answers incrementally:
 curl -X PATCH http://localhost:3000/api/sessions/{sessionId}/answers \
   -H "Content-Type: application/json" \
   -d '{
-    "currentStep": 31,
+    "currentStep": 1,
     "answers": [
-      {"stepKey":"gender","questionKey":"gender","value":"female"},
-      {"stepKey":"goal","questionKey":"goal","value":"Lose weight"},
-      {"stepKey":"age","questionKey":"age","value":30},
-      {"stepKey":"heightCm","questionKey":"heightCm","value":165},
-      {"stepKey":"currentWeightKg","questionKey":"currentWeightKg","value":80},
-      {"stepKey":"targetWeightKg","questionKey":"targetWeightKg","value":70},
-      {"stepKey":"activityLevel","questionKey":"activityLevel","value":"moderate"}
+      {"stepKey":"ageRange","questionKey":"ageRange","value":"30-39"}
     ]
   }'
 ```
+
+Repeat the same endpoint for each next step, increasing `currentStep` by one. The API rejects skipped steps, unknown question keys, unsupported enum values, and out-of-range numeric values.
 
 Recover progress:
 
@@ -199,6 +204,7 @@ erDiagram
 ## Tests
 
 ```bash
+npx tsc --noEmit
 npm test
 npm run lint
 npm run build
@@ -210,12 +216,23 @@ Current coverage includes:
 - BMI category boundaries.
 - Calorie and target projection behavior.
 - Invalid age, height, current weight, target weight, and unrealistic target boundaries.
+- API boundary validation for unsupported enum values and out-of-range saved answers.
 - Database-backed API flow for session creation, answer persistence, completion, unpaid result gating, `/pay`, and paid result unlocking.
 - Missing required answer behavior for the complete endpoint.
-- Funnel state-machine boundaries for skipped steps and unknown question keys.
+- Funnel state-machine boundaries for skipped steps, unknown question keys, repeated submissions, and current-step lag caused by concurrent saves.
 - Payment webhook signature helper behavior and idempotent replay handling.
 
-The API flow tests run when `DATABASE_URL` is available. Without it, they are skipped so CI can be configured incrementally.
+The API flow tests run when `DATABASE_URL` is available. Without it, they are skipped, while unit-level algorithm, schema, funnel, and payment helper tests still run in CI.
+
+## CI
+
+GitHub Actions is configured in `.github/workflows/ci.yml` and runs:
+
+- `npm ci`
+- `npx tsc --noEmit`
+- `npm run lint`
+- `npm test`
+- `npm run build`
 
 ## Quality Notes
 
@@ -223,6 +240,7 @@ The API flow tests run when `DATABASE_URL` is available. Without it, they are sk
 - The `/pay` endpoint records a `PaymentEvent` and upgrades the user's subscription to `ACTIVE`.
 - `/api/pay` verifies signed webhook bodies when `PAY_WEBHOOK_SECRET` is configured and uses `providerEventId` as a unique idempotency key.
 - `AssessmentAnswer` uses a unique `(assessmentId, questionKey)` constraint so repeated submissions update the same answer instead of creating duplicates.
+- `PATCH /api/sessions/{sessionId}/answers` validates values before persistence, so invalid health values are rejected at the API boundary.
 - Funnel answers must follow the configured step order before completion can calculate a result.
 - Health calculations run server-side only and are persisted before the result page is shown.
 
@@ -241,4 +259,4 @@ These require account access and should be completed before submission:
 - Run `npx prisma migrate deploy` in the deployment pipeline or before release.
 - Run `APP_URL=https://your-deployed-app npm run demo:paid-session` and paste the paid `sessionId` into your submission notes.
 - Confirm the public URL can complete the quiz, show locked results, call `/api/pay`, and show full results.
-- Optional: add GitHub Actions for `npm test`, `npm run lint`, and `npm run build`.
+- Confirm GitHub Actions passes on the submitted commit.

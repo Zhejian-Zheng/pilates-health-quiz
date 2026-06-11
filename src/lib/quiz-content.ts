@@ -2,6 +2,7 @@ import type { Language, Question, QuizCopy } from "@/lib/quiz-types";
 
 export const SESSION_STORAGE_KEY = "pilates-health-quiz-session-id";
 export const LANGUAGE_STORAGE_KEY = "pilates-health-quiz-language";
+export const AUTH_STORAGE_KEY = "pilates-health-quiz-auth";
 
 export const copy = {
   en: {
@@ -75,6 +76,19 @@ export const copy = {
     unlock: "Unlock full plan",
     unlocking: "Unlocking...",
     healthSnapshot: "Health snapshot",
+    authEyebrow: "Start your quiz",
+    authTitle: "Choose how to continue",
+    authLogin: "Log in",
+    authRegister: "Register",
+    authGuest: "Continue as guest",
+    authName: "Name",
+    authEmail: "Email",
+    authPassword: "Password",
+    authSubmitLogin: "Log in and continue",
+    authSubmitRegister: "Create account and continue",
+    authGuestNote: "Your progress will stay on this device.",
+    authInvalid: "Please enter a valid email and password.",
+    returnHome: "Home",
   },
   zh: {
     loading: "正在载入你的测评...",
@@ -146,6 +160,19 @@ export const copy = {
     unlock: "解锁完整计划",
     unlocking: "解锁中...",
     healthSnapshot: "健康概览",
+    authEyebrow: "开始测评",
+    authTitle: "选择继续方式",
+    authLogin: "登录",
+    authRegister: "注册",
+    authGuest: "游客继续",
+    authName: "姓名",
+    authEmail: "邮箱",
+    authPassword: "密码",
+    authSubmitLogin: "登录并继续",
+    authSubmitRegister: "创建账户并继续",
+    authGuestNote: "进度会保存在当前设备上。",
+    authInvalid: "请输入有效邮箱和密码。",
+    returnHome: "主页",
   },
 } satisfies QuizCopy;
 
@@ -175,14 +202,6 @@ export const questions: Question[] = [
       en: "Your plan begins with a short Pilates readiness check.",
       zh: "你的计划会从一个简短的普拉提准备度测评开始。",
     },
-    image: {
-      src: "https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=900&q=85",
-      alt: { en: "Pilates mat setup in a calm studio", zh: "安静工作室里的普拉提垫" },
-      caption: {
-        en: "Age helps tune the pace and recovery rhythm.",
-        zh: "年龄会帮助调整训练节奏和恢复安排。",
-      },
-    },
     type: "single",
     options: [
       { label: answerLabels["18-29"], value: "18-29" },
@@ -194,13 +213,6 @@ export const questions: Question[] = [
   {
     key: "gender",
     title: { en: "Which option best describes you?", zh: "以下哪项更符合你？" },
-    image: {
-      src: "https://images.unsplash.com/photo-1571019613914-85f342c6a11e?auto=format&fit=crop&w=900&q=85",
-      alt: {
-        en: "Pilates class practicing controlled movement",
-        zh: "普拉提课程中的控制训练",
-      },
-    },
     type: "single",
     options: [
       { label: answerLabels.female, value: "female" },
@@ -211,17 +223,6 @@ export const questions: Question[] = [
   {
     key: "goal",
     title: { en: "What is your main goal?", zh: "你的主要目标是什么？" },
-    image: {
-      src: "https://images.unsplash.com/photo-1506126613408-eca07ce68773?auto=format&fit=crop&w=900&q=85",
-      alt: {
-        en: "Person stretching on a mat with soft light",
-        zh: "柔和光线下在垫上伸展的人",
-      },
-      caption: {
-        en: "Your goal shapes the tone of the recommendation.",
-        zh: "目标会影响推荐计划的重点。",
-      },
-    },
     type: "single",
     options: [
       { label: answerLabels["Lose weight"], value: "Lose weight" },
@@ -233,17 +234,6 @@ export const questions: Question[] = [
   {
     key: "activityLevel",
     title: { en: "How often do you exercise?", zh: "你平时运动频率如何？" },
-    image: {
-      src: "https://images.unsplash.com/photo-1518310383802-640c2de311b2?auto=format&fit=crop&w=900&q=85",
-      alt: {
-        en: "Fitness studio with exercise equipment",
-        zh: "带有训练器械的健身空间",
-      },
-      caption: {
-        en: "Activity level estimates daily energy needs.",
-        zh: "运动频率会用于估算每日能量消耗。",
-      },
-    },
     type: "single",
     options: [
       { label: answerLabels.sedentary, value: "sedentary" },
@@ -256,14 +246,6 @@ export const questions: Question[] = [
     key: "heightCm",
     title: { en: "How tall are you?", zh: "你的身高是多少？" },
     helper: { en: "Use centimeters for this version.", zh: "当前版本使用厘米作为单位。" },
-    image: {
-      src: "https://images.unsplash.com/photo-1576678927484-cc907957088c?auto=format&fit=crop&w=900&q=85",
-      alt: { en: "Measuring tape and wellness notes", zh: "软尺和健康记录" },
-      caption: {
-        en: "Height lets us calculate BMI with better context.",
-        zh: "身高会用于更准确地计算 BMI。",
-      },
-    },
     type: "number",
     suffix: { en: "cm", zh: "厘米" },
     min: 100,
@@ -273,13 +255,6 @@ export const questions: Question[] = [
   {
     key: "currentWeightKg",
     title: { en: "What is your current weight?", zh: "你现在的体重是多少？" },
-    image: {
-      src: "https://images.unsplash.com/photo-1517836357463-d25dfeac3438?auto=format&fit=crop&w=900&q=85",
-      alt: {
-        en: "Training area with a scale and fitness mat",
-        zh: "有体重秤和训练垫的运动区域",
-      },
-    },
     type: "number",
     suffix: { en: "kg", zh: "公斤" },
     min: 30,
@@ -293,17 +268,6 @@ export const questions: Question[] = [
       en: "Choose a realistic target for a sustainable plan.",
       zh: "选择一个现实、可持续的目标。",
     },
-    image: {
-      src: "https://images.unsplash.com/photo-1518611012118-696072aa579a?auto=format&fit=crop&w=900&q=85",
-      alt: {
-        en: "Pilates movement focused on steady progress",
-        zh: "强调稳定进步的普拉提动作",
-      },
-      caption: {
-        en: "A realistic target keeps the plan sustainable.",
-        zh: "现实目标能让计划更可持续。",
-      },
-    },
     type: "number",
     suffix: { en: "kg", zh: "公斤" },
     min: 30,
@@ -313,13 +277,6 @@ export const questions: Question[] = [
   {
     key: "age",
     title: { en: "What is your exact age?", zh: "你的准确年龄是多少？" },
-    image: {
-      src: "https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?auto=format&fit=crop&w=900&q=85",
-      alt: {
-        en: "Pilates practitioner holding a balanced pose",
-        zh: "普拉提练习者保持平衡姿势",
-      },
-    },
     type: "number",
     suffix: { en: "years", zh: "岁" },
     min: 13,
