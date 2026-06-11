@@ -75,14 +75,14 @@ export function QuestionPanel({
   return (
     <div className="animate-[page-rise_0.42s_ease_both]">
       <div>
-        <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[#3c8786]">
+        <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[#0f766e]">
           {String(t.quizLabel)} · {stepIndex + 1}/{totalSteps}
         </p>
-        <h2 className="mt-4 max-w-3xl text-3xl font-semibold leading-tight text-[#171717] sm:text-4xl">
+        <h2 className="mt-4 max-w-3xl text-3xl font-semibold leading-tight text-[#12312c] sm:text-4xl">
           {question.title[language]}
         </h2>
         {question.helper ? (
-          <p className="mt-4 max-w-2xl text-base leading-7 text-black/58">
+          <p className="mt-4 max-w-2xl text-base leading-7 text-[#52746d]">
             {question.helper[language]}
           </p>
         ) : null}
@@ -92,10 +92,10 @@ export function QuestionPanel({
         <div className={`mt-7 grid gap-4 ${getOptionGridClass(question.options.length)}`}>
           {question.options.map((option, index) => (
             <button
-              className={`group flex min-h-24 items-center justify-between gap-4 rounded-2xl border px-5 py-5 text-left text-base font-semibold transition duration-300 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-black/8 ${
+              className={`group flex min-h-24 items-center justify-between gap-4 rounded-2xl border px-5 py-5 text-left text-base font-semibold transition duration-300 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-[#0f766e]/8 ${
                 answer === option.value
-                  ? "border-[#171717] bg-[#171717] text-white shadow-lg shadow-black/12"
-                  : "border-black/10 bg-white/86 text-black/78 hover:border-[#3c8786]/50 hover:bg-white"
+                  ? "border-[#0f766e] bg-[#0f766e] text-white shadow-lg shadow-[#0f766e]/14"
+                  : "border-[#0f766e]/14 bg-white/86 text-[#244942] hover:border-[#0f766e]/50 hover:bg-white"
               }`}
               disabled={isSaving}
               key={option.value}
@@ -109,7 +109,7 @@ export function QuestionPanel({
               <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border text-[10px] font-bold transition ${
                 answer === option.value
                   ? "border-white bg-white text-[#171717]"
-                  : "border-black/14 bg-black/[0.03] text-transparent group-hover:border-[#3c8786]/40"
+                  : "border-[#0f766e]/20 bg-[#0f766e]/5 text-transparent group-hover:border-[#0f766e]/50"
               }`}>
                 ✓
               </span>
@@ -118,11 +118,11 @@ export function QuestionPanel({
         </div>
       ) : (
         <div className="mt-6 max-w-2xl">
-          <label className="block text-sm font-semibold text-black/58">
+          <label className="block text-sm font-semibold text-[#52746d]">
             {question.suffix[language]}
           </label>
           <input
-            className="mt-3 h-16 w-full rounded-2xl border border-black/12 bg-white/86 px-5 text-2xl font-semibold outline-none transition focus:border-[#3c8786] focus:ring-4 focus:ring-[#3c8786]/10"
+            className="mt-3 h-16 w-full rounded-2xl border border-[#0f766e]/16 bg-white/88 px-5 text-2xl font-semibold text-[#12312c] outline-none transition focus:border-[#0f766e] focus:ring-4 focus:ring-[#0f766e]/10"
             inputMode="decimal"
             max={question.max}
             min={question.min}
@@ -132,7 +132,7 @@ export function QuestionPanel({
             value={inputValue}
           />
           <button
-            className="mt-5 h-13 w-full rounded-2xl bg-[#171717] px-5 text-sm font-semibold text-white transition duration-300 hover:-translate-y-0.5 hover:bg-black hover:shadow-lg hover:shadow-black/18 disabled:cursor-not-allowed disabled:bg-black/40"
+            className="mt-5 h-13 w-full rounded-2xl bg-[#0f766e] px-5 text-sm font-semibold text-white transition duration-300 hover:-translate-y-0.5 hover:bg-[#115e59] hover:shadow-lg hover:shadow-[#0f766e]/18 disabled:cursor-not-allowed disabled:bg-[#0f766e]/40"
             disabled={isSaving}
             onClick={onNumberSubmit}
             type="button"
@@ -142,18 +142,18 @@ export function QuestionPanel({
         </div>
       )}
 
-      <div className="mt-8 grid gap-3 border-t border-black/8 pt-5 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
+      <div className="mt-8 grid gap-3 border-t border-[#0f766e]/12 pt-5 sm:grid-cols-[1fr_auto_1fr] sm:items-center">
         <button
-          className="h-11 rounded-2xl border border-black/12 px-5 text-sm font-semibold text-black/58 transition hover:bg-black/[0.03] disabled:text-black/25"
+          className="h-11 rounded-2xl border border-[#0f766e]/18 px-5 text-sm font-semibold text-[#52746d] transition hover:bg-[#0f766e]/6 disabled:text-[#52746d]/35"
           disabled={isSaving || stepIndex === 0}
           onClick={onBack}
           type="button"
         >
           {String(t.back)}
         </button>
-        <span className="text-center text-sm text-black/42">{syncText}</span>
+        <span className="text-center text-sm text-[#52746d]">{syncText}</span>
         <button
-          className="h-11 rounded-2xl bg-[#171717] px-5 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-black hover:shadow-lg hover:shadow-black/14 disabled:cursor-not-allowed disabled:bg-black/35"
+          className="h-11 rounded-2xl bg-[#0f766e] px-5 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-[#115e59] hover:shadow-lg hover:shadow-[#0f766e]/14 disabled:cursor-not-allowed disabled:bg-[#0f766e]/35"
           disabled={isSaving || answer === undefined}
           onClick={onNext}
           type="button"

@@ -3,21 +3,22 @@ import type { Language, Question, QuizCopy } from "@/lib/quiz-types";
 export const SESSION_STORAGE_KEY = "pilates-health-quiz-session-id";
 export const LANGUAGE_STORAGE_KEY = "pilates-health-quiz-language";
 export const AUTH_STORAGE_KEY = "pilates-health-quiz-auth";
+export const AUTH_ACCOUNTS_STORAGE_KEY = "pilates-health-quiz-accounts";
 
 export const copy = {
   en: {
     loading: "Loading your quiz...",
-    brandEyebrow: "Pilates Health Quiz",
+    brandEyebrow: "Pilates Health Assessment",
     heroTitle: "A calmer way into a stronger body.",
     heroSub:
       "Answer a few focused questions and unlock a beginner Pilates plan shaped around your current body, goal, and rhythm.",
-    heroBadge: "Personalized in under a minute",
+    heroBadge: "Private health assessment in under a minute",
     language: "Language",
     savedAnswers: "Saved answers",
     requiredFields: "Health fields",
     session: "Session",
     notStarted: "not started",
-    quizLabel: "1-minute quiz",
+    quizLabel: "Health assessment",
     selected: "Selected",
     choose: "Choose",
     continue: "Continue",
@@ -77,7 +78,7 @@ export const copy = {
     unlocking: "Unlocking...",
     healthSnapshot: "Health snapshot",
     authEyebrow: "Start your quiz",
-    authTitle: "Choose how to continue",
+    authTitle: "Start with a secure health check",
     authLogin: "Log in",
     authRegister: "Register",
     authGuest: "Continue as guest",
@@ -89,20 +90,25 @@ export const copy = {
     authGuestNote: "Your progress will stay on this device.",
     authInvalid: "Please enter a valid email and password.",
     returnHome: "Home",
+    accountGuest: "Guest",
+    settings: "Settings",
+    signIn: "Log in",
+    logout: "Log out",
+    upgradeMembership: "Upgrade membership",
   },
   zh: {
     loading: "正在载入你的测评...",
-    brandEyebrow: "普拉提健康测评",
+    brandEyebrow: "普拉提健康评估",
     heroTitle: "用更平静的方式，走向更强的身体。",
     heroSub:
       "回答几个关键问题，生成一份基于当前身体状态、目标和运动节奏的初学者普拉提计划。",
-    heroBadge: "1 分钟内生成个性化计划",
+    heroBadge: "1 分钟完成隐私健康评估",
     language: "语言",
     savedAnswers: "已保存答案",
     requiredFields: "健康字段",
     session: "会话",
     notStarted: "尚未开始",
-    quizLabel: "1 分钟测评",
+    quizLabel: "健康评估",
     selected: "已选择",
     choose: "选择",
     continue: "继续",
@@ -161,7 +167,7 @@ export const copy = {
     unlocking: "解锁中...",
     healthSnapshot: "健康概览",
     authEyebrow: "开始测评",
-    authTitle: "选择继续方式",
+    authTitle: "从安全的健康评估开始",
     authLogin: "登录",
     authRegister: "注册",
     authGuest: "游客继续",
@@ -173,6 +179,11 @@ export const copy = {
     authGuestNote: "进度会保存在当前设备上。",
     authInvalid: "请输入有效邮箱和密码。",
     returnHome: "主页",
+    accountGuest: "游客",
+    settings: "设置",
+    signIn: "登录",
+    logout: "退出登录",
+    upgradeMembership: "充值会员",
   },
 } satisfies QuizCopy;
 

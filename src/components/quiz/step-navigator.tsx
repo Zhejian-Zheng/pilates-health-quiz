@@ -26,18 +26,18 @@ export function StepNavigator({
   const t = copy[language];
 
   return (
-    <aside className="border-t border-black/8 pt-5">
+    <aside className="border-t border-[#0f766e]/12 pt-5">
       <div className="flex items-start justify-between gap-2">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#3c8786]">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#0f766e]">
             {String(t.questionList)}
           </p>
-          <p className="mt-0.5 text-sm font-semibold text-black/70">
+          <p className="mt-0.5 text-sm font-semibold text-[#244942]">
             {remainingCount} {String(t.remaining)}
           </p>
         </div>
         <button
-          className="rounded-full px-2.5 py-1 text-[11px] font-semibold text-black/48 transition hover:bg-black/[0.04] hover:text-black/74"
+          className="rounded-full px-2.5 py-1 text-[11px] font-semibold text-[#52746d] transition hover:bg-[#0f766e]/6 hover:text-[#115e59]"
           onClick={onReset}
           type="button"
         >
@@ -63,12 +63,12 @@ export function StepNavigator({
               aria-current={isCurrent ? "step" : undefined}
               className={`group grid min-h-[50px] grid-cols-[26px_minmax(0,1fr)] items-center gap-2.5 rounded-xl px-2 py-2 text-left transition ${
                 isCurrent
-                  ? "bg-[#e9f4f2]"
+                  ? "bg-[#e2f4ef]"
                   : isAnswered
-                    ? "hover:bg-white/62"
+                    ? "hover:bg-white/70"
                     : isReachable
-                      ? "hover:bg-white/50"
-                      : "cursor-not-allowed text-black/35"
+                      ? "hover:bg-white/56"
+                      : "cursor-not-allowed text-[#52746d]/45"
               }`}
               disabled={!isReachable}
               key={question.key}
@@ -78,22 +78,22 @@ export function StepNavigator({
               <span
                 className={`flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-bold ${
                   isAnswered
-                    ? "bg-[#171717] text-white"
+                    ? "bg-[#0f766e] text-white"
                     : isCurrent
-                      ? "bg-[#3c8786] text-white"
-                      : "bg-black/[0.06] text-black/42"
+                      ? "bg-[#14b8a6] text-white"
+                      : "bg-[#0f766e]/8 text-[#52746d]"
                 }`}
               >
                 {index + 1}
               </span>
               <span className="min-w-0">
-                <span className="block truncate text-[13px] font-semibold text-black/76">
+                <span className="block truncate text-[13px] font-semibold text-[#244942]">
                   {question.title[language]}
                 </span>
-                <span className="mt-0.5 flex items-center gap-1.5 text-[11px] text-black/42">
+                <span className="mt-0.5 flex items-center gap-1.5 text-[11px] text-[#52746d]">
                   <span>{status}</span>
                   {isAnswered ? (
-                    <span className="truncate text-black/52">
+                    <span className="truncate text-[#52746d]">
                       {formatAnswerValue(answers[question.key], language)}
                     </span>
                   ) : null}

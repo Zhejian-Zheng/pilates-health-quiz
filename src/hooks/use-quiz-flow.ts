@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import {
+  AUTH_ACCOUNTS_STORAGE_KEY,
   AUTH_STORAGE_KEY,
   copy,
   LANGUAGE_STORAGE_KEY,
@@ -140,18 +141,35 @@ export function useQuizFlow() {
     credentials: { displayName?: string; email: string; password: string },
   ) {
     const email = credentials.email.trim();
+    const normalizedEmail = email.toLowerCase();
 
     if (!email.includes("@") || credentials.password.length < 6) {
       setError(String(t.authInvalid));
       return;
     }
 
+    const storedAccounts = readStoredAccounts();
+    const registeredName = storedAccounts[normalizedEmail];
+    const fallbackName = email.split("@")[0];
+    const submittedName = credentials.displayName?.trim();
+    const displayName =
+      mode === "register"
+        ? submittedName || fallbackName
+        : registeredName || fallbackName;
+
+    if (mode === "register") {
+      localStorage.setItem(
+        AUTH_ACCOUNTS_STORAGE_KEY,
+        JSON.stringify({
+          ...storedAccounts,
+          [normalizedEmail]: displayName,
+        }),
+      );
+    }
+
     const profile: AuthProfile = {
       mode,
-      displayName:
-        mode === "register"
-          ? credentials.displayName?.trim() || email.split("@")[0]
-          : email.split("@")[0],
+      displayName,
       email,
     };
 
@@ -164,6 +182,10 @@ export function useQuizFlow() {
     localStorage.removeItem(AUTH_STORAGE_KEY);
     setAuthProfile(null);
     setError(null);
+  }
+
+  function logout() {
+    returnHome();
   }
 
   async function ensureSession() {
@@ -431,6 +453,43 @@ export function useQuizFlow() {
     }
   }
 
+  async function upgradeMembership() {
+    setIsSaving(true);
+    setError(null);
+
+    try {
+      const activeSessionId = sessionId ?? (await ensureSession());
+      const response = await fetch("/api/pay", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          sessionId: activeSessionId,
+          payload: {
+            source: "account-settings",
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(String(t.paymentError));
+      }
+
+      if (result) {
+        await fetchResult(activeSessionId);
+      } else {
+        setSyncStatus("saved");
+      }
+    } catch (paymentError) {
+      setError(
+        paymentError instanceof Error ? paymentError.message : String(t.paymentError),
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
   function startOver() {
     localStorage.removeItem(SESSION_STORAGE_KEY);
     sessionPromiseRef.current = null;
@@ -456,6 +515,7 @@ export function useQuizFlow() {
       goBack,
       goNext,
       goToStep,
+      logout,
       returnHome,
       saveAnswer,
       setNumberDrafts,
@@ -463,6 +523,7 @@ export function useQuizFlow() {
       submitAuth,
       submitNumberAnswer,
       unlockResult,
+      upgradeMembership,
     },
     state: {
       answers,
@@ -508,6 +569,27 @@ function readStoredAuthProfile() {
   }
 
   return null;
+}
+
+function readStoredAccounts() {
+  const storedAccounts = window.localStorage.getItem(AUTH_ACCOUNTS_STORAGE_KEY);
+
+  if (!storedAccounts) {
+    return {};
+  }
+
+  try {
+    const parsed = JSON.parse(storedAccounts) as Record<string, unknown>;
+
+    return Object.fromEntries(
+      Object.entries(parsed).filter(
+        (entry): entry is [string, string] => typeof entry[1] === "string",
+      ),
+    );
+  } catch {
+    window.localStorage.removeItem(AUTH_ACCOUNTS_STORAGE_KEY);
+    return {};
+  }
 }
 
 function getGuestProfile(): AuthProfile {

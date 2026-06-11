@@ -34,23 +34,34 @@ export function AuthGate({
   return (
     <section className="mx-auto grid w-full max-w-3xl gap-8 py-10 sm:py-14">
       <div>
-        <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[#3c8786]">
+        <p className="text-sm font-semibold uppercase tracking-[0.16em] text-[#0f766e]">
           {String(t.authEyebrow)}
         </p>
-        <h1 className="mt-4 text-4xl font-semibold tracking-[-0.02em] text-[#171717] sm:text-5xl">
+        <h1 className="mt-4 text-4xl font-semibold tracking-[-0.02em] text-[#12312c] sm:text-5xl">
           {String(t.authTitle)}
         </h1>
+        <div className="mt-5 flex flex-wrap gap-2 text-xs font-semibold text-[#52746d]">
+          <span className="rounded-full bg-[#e2f4ef] px-3 py-1.5">
+            {language === "zh" ? "隐私保护" : "Private session"}
+          </span>
+          <span className="rounded-full bg-[#e2f4ef] px-3 py-1.5">
+            {language === "zh" ? "服务端计算" : "Server-side scoring"}
+          </span>
+          <span className="rounded-full bg-[#e2f4ef] px-3 py-1.5">
+            {language === "zh" ? "1 分钟完成" : "1-minute assessment"}
+          </span>
+        </div>
       </div>
 
       <div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_220px]">
         <form className="grid gap-4" onSubmit={handleSubmit}>
-          <div className="flex w-fit gap-1 rounded-full bg-black/[0.04] p-1">
+          <div className="flex w-fit gap-1 rounded-full bg-[#dcefe9] p-1">
             {(["login", "register"] as const).map((item) => (
               <button
                 className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
                   mode === item
-                    ? "bg-[#171717] text-white shadow-sm shadow-black/10"
-                    : "text-black/48 hover:text-black"
+                    ? "bg-[#0f766e] text-white shadow-sm shadow-[#0f766e]/16"
+                    : "text-[#52746d] hover:text-[#12312c]"
                 }`}
                 key={item}
                 onClick={() => setMode(item)}
@@ -62,20 +73,20 @@ export function AuthGate({
           </div>
 
           {mode === "register" ? (
-            <label className="grid gap-2 text-sm font-semibold text-black/58">
+            <label className="grid gap-2 text-sm font-semibold text-[#52746d]">
               {String(t.authName)}
               <input
-                className="h-13 rounded-2xl border border-black/12 bg-white/72 px-4 text-base text-[#171717] outline-none transition focus:border-[#3c8786] focus:ring-4 focus:ring-[#3c8786]/10"
+                className="h-13 rounded-2xl border border-[#0f766e]/14 bg-white/78 px-4 text-base text-[#12312c] outline-none transition focus:border-[#0f766e] focus:ring-4 focus:ring-[#0f766e]/10"
                 onChange={(event) => setDisplayName(event.target.value)}
                 value={displayName}
               />
             </label>
           ) : null}
 
-          <label className="grid gap-2 text-sm font-semibold text-black/58">
+          <label className="grid gap-2 text-sm font-semibold text-[#52746d]">
             {String(t.authEmail)}
             <input
-              className="h-13 rounded-2xl border border-black/12 bg-white/72 px-4 text-base text-[#171717] outline-none transition focus:border-[#3c8786] focus:ring-4 focus:ring-[#3c8786]/10"
+              className="h-13 rounded-2xl border border-[#0f766e]/14 bg-white/78 px-4 text-base text-[#12312c] outline-none transition focus:border-[#0f766e] focus:ring-4 focus:ring-[#0f766e]/10"
               inputMode="email"
               onChange={(event) => setEmail(event.target.value)}
               type="email"
@@ -83,10 +94,10 @@ export function AuthGate({
             />
           </label>
 
-          <label className="grid gap-2 text-sm font-semibold text-black/58">
+          <label className="grid gap-2 text-sm font-semibold text-[#52746d]">
             {String(t.authPassword)}
             <input
-              className="h-13 rounded-2xl border border-black/12 bg-white/72 px-4 text-base text-[#171717] outline-none transition focus:border-[#3c8786] focus:ring-4 focus:ring-[#3c8786]/10"
+              className="h-13 rounded-2xl border border-[#0f766e]/14 bg-white/78 px-4 text-base text-[#12312c] outline-none transition focus:border-[#0f766e] focus:ring-4 focus:ring-[#0f766e]/10"
               onChange={(event) => setPassword(event.target.value)}
               type="password"
               value={password}
@@ -94,13 +105,13 @@ export function AuthGate({
           </label>
 
           {error ? (
-            <p className="border-l-2 border-[#ee505a] bg-[#ee505a]/8 px-4 py-3 text-sm font-medium text-[#a12630]">
+            <p className="border-l-2 border-[#dc2626] bg-[#fee2e2]/60 px-4 py-3 text-sm font-medium text-[#991b1b]">
               {error}
             </p>
           ) : null}
 
           <button
-            className="h-13 rounded-2xl bg-[#171717] px-5 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-black hover:shadow-lg hover:shadow-black/14"
+            className="h-13 rounded-2xl bg-[#0f766e] px-5 text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-[#115e59] hover:shadow-lg hover:shadow-[#0f766e]/18"
             type="submit"
           >
             {mode === "login"
@@ -109,15 +120,15 @@ export function AuthGate({
           </button>
         </form>
 
-        <div className="border-t border-black/8 pt-5 md:border-l md:border-t-0 md:pl-5 md:pt-0">
+        <div className="border-t border-[#0f766e]/12 pt-5 md:border-l md:border-t-0 md:pl-5 md:pt-0">
           <button
-            className="h-13 w-full rounded-2xl border border-black/12 bg-white/62 px-5 text-sm font-semibold text-black/70 transition hover:-translate-y-0.5 hover:bg-white hover:shadow-lg hover:shadow-black/8"
+            className="h-13 w-full rounded-2xl border border-[#0f766e]/18 bg-white/72 px-5 text-sm font-semibold text-[#115e59] transition hover:-translate-y-0.5 hover:bg-white hover:shadow-lg hover:shadow-[#0f766e]/8"
             onClick={onContinueAsGuest}
             type="button"
           >
             {String(t.authGuest)}
           </button>
-          <p className="mt-3 text-sm leading-6 text-black/48">
+          <p className="mt-3 text-sm leading-6 text-[#52746d]">
             {String(t.authGuestNote)}
           </p>
         </div>

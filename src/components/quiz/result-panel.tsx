@@ -24,13 +24,13 @@ export function ResultPanel({
 
   return (
     <div className="animate-[page-rise_0.42s_ease_both]">
-      <p className="text-sm font-semibold uppercase tracking-[0.14em] text-[#3c8786]">
+      <p className="text-sm font-semibold uppercase tracking-[0.14em] text-[#0f766e]">
         {isFull ? String(t.planUnlocked) : String(t.profilePreview)}
       </p>
-      <h2 className="mt-4 text-4xl font-semibold leading-tight">
+      <h2 className="mt-4 text-4xl font-semibold leading-tight text-[#12312c]">
         {isFull ? String(t.unlockedTitle) : String(t.lockedTitle)}
       </h2>
-      <p className="mt-4 text-base leading-7 text-black/62">
+      <p className="mt-4 text-base leading-7 text-[#52746d]">
         {formatSummary(result.result.summary, language)}
       </p>
 
@@ -69,15 +69,15 @@ export function ResultPanel({
       </div>
 
       {isFull && result.result.detailedRecommendation?.report ? (
-        <div className="mt-7 rounded-3xl bg-[#f4f3ef] p-5">
+        <div className="mt-7 rounded-3xl border border-[#0f766e]/10 bg-white/68 p-5">
           <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <h3 className="text-sm font-semibold">{String(t.reportTitle)}</h3>
-              <p className="mt-1 text-xs text-black/45">
+              <p className="mt-1 text-xs text-[#52746d]">
                 {result.result.detailedRecommendation.report.formula} · 7700 kcal/kg
               </p>
             </div>
-            <p className="text-xs font-medium text-black/45">
+            <p className="text-xs font-medium text-[#52746d]">
               {language === "zh" ? "目标差值" : "Target delta"}{" "}
               {result.result.detailedRecommendation.report.targetWeightDeltaKg} kg
             </p>
@@ -87,14 +87,14 @@ export function ResultPanel({
             {result.result.detailedRecommendation.report.scenarios.map(
               (scenario) => (
                 <div
-                  className="grid gap-3 rounded-2xl bg-white/72 px-4 py-3 text-sm sm:grid-cols-[1.1fr_0.9fr_0.9fr]"
+                  className="grid gap-3 rounded-2xl bg-[#f3fbf8] px-4 py-3 text-sm sm:grid-cols-[1.1fr_0.9fr_0.9fr]"
                   key={scenario.activityLevel}
                 >
                   <div>
                     <p className="font-semibold">
                       {translateActivityLabel(scenario.activityLevel, language)}
                     </p>
-                    <p className="mt-1 text-xs text-black/45">
+                    <p className="mt-1 text-xs text-[#52746d]">
                       TDEE {scenario.tdee} kcal · ×{scenario.activityFactor}
                     </p>
                   </div>
@@ -120,7 +120,7 @@ export function ResultPanel({
       ) : null}
 
       {isFull && result.result.projectionCurve ? (
-        <div className="mt-7 rounded-3xl bg-[#f4f3ef] p-5">
+        <div className="mt-7 rounded-3xl border border-[#0f766e]/10 bg-white/68 p-5">
           <h3 className="text-sm font-semibold">{String(t.projection)}</h3>
           <div className="mt-5 flex h-36 items-end gap-1.5">
             {result.result.projectionCurve.slice(0, 18).map((point, index) => {
@@ -133,7 +133,7 @@ export function ResultPanel({
                   title={`${point.date}: ${point.weightKg}kg`}
                 >
                   <div
-                    className="w-full rounded-t-md bg-[#3c8786] transition-all duration-700"
+                    className="w-full rounded-t-md bg-[#0f766e] transition-all duration-700"
                     style={{
                       height: `${height}%`,
                     }}
@@ -144,11 +144,11 @@ export function ResultPanel({
           </div>
         </div>
       ) : (
-        <div className="mt-7 rounded-3xl border border-[#3c8786]/20 bg-[#e9f4f2] p-5">
-          <h3 className="text-sm font-semibold text-[#205c5a]">
+        <div className="mt-7 rounded-3xl border border-[#0f766e]/18 bg-[#e2f4ef] p-5">
+          <h3 className="text-sm font-semibold text-[#115e59]">
             {String(t.fullPlanLocked)}
           </h3>
-          <p className="mt-2 text-sm leading-6 text-black/62">
+          <p className="mt-2 text-sm leading-6 text-[#52746d]">
             {String(t.defaultPaywall)}
           </p>
         </div>
@@ -156,7 +156,7 @@ export function ResultPanel({
 
       <div className="mt-8 grid gap-3 sm:grid-cols-2">
         <button
-          className="h-13 rounded-2xl border border-black/12 text-sm font-semibold text-black/62 transition hover:bg-black/[0.03]"
+          className="h-13 rounded-2xl border border-[#0f766e]/18 text-sm font-semibold text-[#52746d] transition hover:bg-[#0f766e]/6"
           disabled={isSaving}
           onClick={onStartOver}
           type="button"
@@ -165,7 +165,7 @@ export function ResultPanel({
         </button>
         {!isFull ? (
           <button
-            className="h-13 rounded-2xl bg-[#171717] text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-black hover:shadow-lg hover:shadow-black/18 disabled:bg-black/40"
+            className="h-13 rounded-2xl bg-[#0f766e] text-sm font-semibold text-white transition hover:-translate-y-0.5 hover:bg-[#115e59] hover:shadow-lg hover:shadow-[#0f766e]/18 disabled:bg-[#0f766e]/40"
             disabled={isSaving}
             onClick={onUnlock}
             type="button"
@@ -180,11 +180,11 @@ export function ResultPanel({
 
 function Metric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl bg-[#f4f3ef] px-4 py-3">
-      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-black/38">
+    <div className="rounded-2xl border border-[#0f766e]/10 bg-white/70 px-4 py-3">
+      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[#52746d]">
         {label}
       </p>
-      <p className="mt-1 text-lg font-semibold">{value}</p>
+      <p className="mt-1 text-lg font-semibold text-[#12312c]">{value}</p>
     </div>
   );
 }
@@ -206,13 +206,13 @@ function ScenarioCell({
 
   return (
     <div>
-      <p className="text-xs font-semibold uppercase tracking-[0.1em] text-black/38">
+      <p className="text-xs font-semibold uppercase tracking-[0.1em] text-[#52746d]">
         {label}
       </p>
-      <p className="mt-1 font-semibold">
+      <p className="mt-1 font-semibold text-[#12312c]">
         {weeks === null ? String(t.impossible) : `${weeks} ${String(t.weeks)}`}
       </p>
-      <p className="mt-1 text-xs leading-5 text-black/45">
+      <p className="mt-1 text-xs leading-5 text-[#52746d]">
         {calories} kcal/day
         {targetDate ? ` · ${targetDate}` : ""}
       </p>
