@@ -1,0 +1,100 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  sessionId String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  assessments  AssessmentSession[]
+  subscription Subscription?
+}
+
+model AssessmentSession {
+  id          String    @id @default(cuid())
+  userId      String
+  status      String    @default("IN_PROGRESS")
+  currentStep Int       @default(0)
+  flowId      String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  completedAt DateTime?
+
+  user    User               @relation(fields: [userId], references: [id])
+  answers AssessmentAnswer[]
+  profile HealthProfile?
+  result  AssessmentResult?
+}
+
+model AssessmentAnswer {
+  id           String   @id @default(cuid())
+  assessmentId String
+  stepKey      String
+  questionKey  String
+  value        Json
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  assessment AssessmentSession @relation(fields: [assessmentId], references: [id])
+
+  @@unique([assessmentId, questionKey])
+}
+
+model HealthProfile {
+  id              String   @id @default(cuid())
+  assessmentId    String   @unique
+  gender          String
+  goal            String
+  age             Int
+  heightCm        Float
+  currentWeightKg Float
+  targetWeightKg  Float
+  activityLevel   String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  assessment AssessmentSession @relation(fields: [assessmentId], references: [id])
+}
+
+model AssessmentResult {
+  id                     String   @id @default(cuid())
+  assessmentId           String   @unique
+  bmi                    Float
+  bmiCategory            String
+  recommendedCalories    Int
+  targetDate             DateTime
+  summary                String
+  detailedRecommendation Json
+  projectionCurve        Json
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  assessment AssessmentSession @relation(fields: [assessmentId], references: [id])
+}
+
+model Subscription {
+  id        String    @id @default(cuid())
+  userId    String    @unique
+  status    String    @default("INACTIVE")
+  startedAt DateTime?
+  expiresAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model PaymentEvent {
+  id        String   @id @default(cuid())
+  sessionId String
+  eventType String
+  payload   Json
+  createdAt DateTime @default(now())
+}
