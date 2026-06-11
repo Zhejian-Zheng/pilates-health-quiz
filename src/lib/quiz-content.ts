@@ -62,7 +62,8 @@ export const copy = {
     weeks: "weeks",
     impossible: "Not recommended",
     fullPlanLocked: "Full plan locked",
-    defaultPaywall: "Upgrade to unlock your full Pilates plan.",
+    defaultPaywall:
+      "Your preview includes BMI and a basic health summary. Upgrade to unlock the full server-generated plan.",
     startOver: "Start over",
     resetQuiz: "Reset quiz",
     questionList: "Question list",
@@ -151,7 +152,8 @@ export const copy = {
     weeks: "周",
     impossible: "不建议",
     fullPlanLocked: "完整计划已锁定",
-    defaultPaywall: "解锁后可查看完整普拉提计划。",
+    defaultPaywall:
+      "当前预览包含 BMI 和基础健康摘要。升级会员后可解锁完整的服务端计算计划。",
     startOver: "重新开始",
     resetQuiz: "重置测评",
     questionList: "问题列表",

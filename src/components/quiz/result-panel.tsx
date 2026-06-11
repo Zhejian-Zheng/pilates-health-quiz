@@ -21,6 +21,15 @@ export function ResultPanel({
 }) {
   const t = copy[language];
   const isFull = result.access === "FULL";
+  const paywallBenefits =
+    language === "zh"
+      ? ["每日建议摄入热量", "目标体重预测日期", "逐周体重变化曲线", "个性化训练重点"]
+      : [
+          "Recommended daily calories",
+          "Target prediction date",
+          "Weekly weight projection",
+          "Personalized training focus",
+        ];
 
   return (
     <div className="animate-[page-rise_0.42s_ease_both]">
@@ -151,6 +160,17 @@ export function ResultPanel({
           <p className="mt-2 text-sm leading-6 text-[#52746d]">
             {String(t.defaultPaywall)}
           </p>
+          <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            {paywallBenefits.map((benefit) => (
+              <div
+                className="flex items-center gap-2 rounded-2xl bg-white/58 px-3 py-2 text-sm font-semibold text-[#12312c]"
+                key={benefit}
+              >
+                <span className="h-2 w-2 rounded-full bg-[#0f766e]" />
+                {benefit}
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

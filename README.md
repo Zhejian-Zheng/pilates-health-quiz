@@ -96,12 +96,79 @@ Fetch gated results:
 curl http://localhost:3000/api/results/{sessionId}
 ```
 
+## Subscription & Mock Payment
+
+This project implements the required subscription-gated result flow with a simulated payment endpoint. It does not charge real money.
+
+The result API checks the user's `subscription_status` every time `GET /api/results/{sessionId}` is called.
+
+### Non-member result
+
+When the subscription is missing, inactive, or expired, the API returns:
+
+- `access: "LOCKED"`
+- `subscriptionStatus`
+- BMI
+- BMI category
+- Basic health summary
+- A `paywall` object explaining which fields are protected
+
+Protected fields are not included in the response. Non-members cannot receive:
+
+- `recommendedCalories`
+- `targetDate`
+- `detailedRecommendation`
+- `projectionCurve`
+
+Example locked response shape:
+
+```json
+{
+  "sessionId": "demo-session-id",
+  "subscriptionStatus": "INACTIVE",
+  "access": "LOCKED",
+  "result": {
+    "bmi": 24.6,
+    "bmiCategory": "Healthy",
+    "summary": "Your BMI is in the healthy range.",
+    "paywall": {
+      "message": "Upgrade to unlock your full Pilates plan.",
+      "protectedFields": [
+        "recommendedCalories",
+        "targetDate",
+        "detailedRecommendation",
+        "projectionCurve"
+      ]
+    }
+  }
+}
+```
+
+### Member result
+
+After payment is simulated, the same endpoint returns:
+
+- `access: "FULL"`
+- Recommended daily calories
+- Target prediction date
+- Detailed recommendation data
+- Weekly projection curve
+- Full report data used by the result UI
+
+The API response intentionally changes based on server-side subscription state, not frontend state, so refreshing the page or calling the API directly preserves the same access rules.
+
 Simulate payment:
 
 ```bash
 curl -X POST http://localhost:3000/api/pay \
   -H "Content-Type: application/json" \
-  -d '{"sessionId":"{sessionId}","payload":{"mock":true}}'
+  -d '{
+    "sessionId": "{sessionId}",
+    "providerEventId": "evt_demo_001",
+    "payload": {
+      "source": "readme-demo"
+    }
+  }'
 ```
 
 Production webhook requests must include an `x-pay-signature` HMAC-SHA256 signature over the raw JSON body using `PAY_WEBHOOK_SECRET`. Include a stable `providerEventId` to make retries idempotent:
@@ -114,6 +181,8 @@ curl -X POST http://localhost:3000/api/pay \
 ```
 
 After payment, `GET /api/results/{sessionId}` returns the full result including recommended calories, target date, detailed recommendations, and projection curve.
+
+In a production app, `/api/pay` should be replaced by a real payment provider webhook such as Stripe or Paddle. That webhook should verify signatures, validate amount and currency, store provider event IDs for idempotency, and reject replayed or mismatched events. This project keeps payment simulated because the assignment asks for a backend subscription/payment loop rather than live card processing.
 
 Generate a paid demo session for review:
 
