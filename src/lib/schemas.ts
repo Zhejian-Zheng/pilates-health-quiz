@@ -50,3 +50,9 @@ export const saveAnswersSchema = z.object({
   currentStep: z.number().int().min(0).max(200).optional(),
   answers: z.array(answerSchema).min(1).max(20),
 });
+
+export const paySchema = z.object({
+  sessionId: z.string().trim().min(1).max(120),
+  eventType: z.string().trim().min(1).max(80).default("PAYMENT_SUCCEEDED"),
+  payload: jsonValueSchema.default({}),
+});
