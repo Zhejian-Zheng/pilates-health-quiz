@@ -13,9 +13,9 @@ export async function GET(_request: Request, context: ResultRouteContext) {
   const { sessionId } = await context.params;
   const result = await getSessionResultPayload(sessionId);
 
-  if ("error" in result) {
-    return errorResponse(result.error, result.status);
+  if ("payload" in result) {
+    return Response.json(result.payload);
   }
 
-  return Response.json(result.payload);
+  return errorResponse(result.error, result.status);
 }

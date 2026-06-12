@@ -15,7 +15,7 @@ export async function GET(request: Request) {
 
   const result = await getSessionResultPayload(sessionId);
 
-  if ("error" in result) {
+  if (!("payload" in result)) {
     return errorResponse(result.error, result.status);
   }
 
