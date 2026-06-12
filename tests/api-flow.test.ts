@@ -32,6 +32,9 @@ describe.runIf(hasDatabase).sequential("assessment API flow", () => {
       const { GET: getResult } = await import(
         "../src/app/api/results/[sessionId]/route"
       );
+      const { GET: getCurrentResult } = await import(
+        "../src/app/api/results/current/route"
+      );
       const { POST: pay } = await import("../src/app/api/pay/route");
 
       const createdResponse = await createSession(
@@ -97,16 +100,26 @@ describe.runIf(hasDatabase).sequential("assessment API flow", () => {
         "projectionCurve",
       );
 
-      const paidResponse = await pay(
-        jsonRequest(
-          "http://test.local/api/pay",
-          {
-            sessionId: created.sessionId,
-            providerEventId: `test_payment_${created.sessionId}`,
-            payload: { test: true },
+      const lockedCurrentResponse = await getCurrentResult(
+        new Request("http://test.local/api/results/current", {
+          headers: {
+            cookie: toCookieHeader(createdResponse),
           },
-          "POST",
-        ),
+        }),
+      );
+      const lockedCurrent = await lockedCurrentResponse.json();
+
+      expect(lockedCurrentResponse.status).toBe(200);
+      expect(lockedCurrent.sessionId).toBe(created.sessionId);
+      expect(lockedCurrent.access).toBe("LOCKED");
+
+      const paidResponse = await pay(
+        jsonRequest("http://test.local/api/pay", {
+          providerEventId: `test_payment_${created.sessionId}`,
+          payload: { test: true },
+        }, "POST", {
+          cookie: toCookieHeader(createdResponse),
+        }),
       );
       const paid = await paidResponse.json();
 
@@ -115,15 +128,12 @@ describe.runIf(hasDatabase).sequential("assessment API flow", () => {
       expect(paid.subscriptionStatus).toBe("ACTIVE");
 
       const replayResponse = await pay(
-        jsonRequest(
-          "http://test.local/api/pay",
-          {
-            sessionId: created.sessionId,
-            providerEventId: `test_payment_${created.sessionId}`,
-            payload: { test: true },
-          },
-          "POST",
-        ),
+        jsonRequest("http://test.local/api/pay", {
+          providerEventId: `test_payment_${created.sessionId}`,
+          payload: { test: true },
+        }, "POST", {
+          cookie: toCookieHeader(createdResponse),
+        }),
       );
       const replay = await replayResponse.json();
 
@@ -142,6 +152,19 @@ describe.runIf(hasDatabase).sequential("assessment API flow", () => {
       expect(full.result.recommendedCalories).toBeGreaterThan(0);
       expect(full.result.projectionCurve.length).toBeGreaterThan(1);
       expect(full.result.paywall).toBeUndefined();
+
+      const fullCurrentResponse = await getCurrentResult(
+        new Request("http://test.local/api/results/current", {
+          headers: {
+            cookie: toCookieHeader(createdResponse),
+          },
+        }),
+      );
+      const fullCurrent = await fullCurrentResponse.json();
+
+      expect(fullCurrentResponse.status).toBe(200);
+      expect(fullCurrent.access).toBe("FULL");
+      expect(fullCurrent.result.projectionCurve.length).toBeGreaterThan(1);
     },
     60_000,
   );
@@ -374,11 +397,17 @@ describe.skipIf(hasDatabase)("assessment API flow", () => {
   });
 });
 
-function jsonRequest(url: string, body: unknown, method = "POST") {
+function jsonRequest(
+  url: string,
+  body: unknown,
+  method = "POST",
+  headers: Record<string, string> = {},
+) {
   return new Request(url, {
     method,
     headers: {
       "Content-Type": "application/json",
+      ...headers,
     },
     body: JSON.stringify(body),
   });

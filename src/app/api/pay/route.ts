@@ -5,9 +5,11 @@ import {
 } from "@/lib/pay-webhook";
 import { prisma } from "@/lib/prisma";
 import { paySchema } from "@/lib/schemas";
+import { readSessionCookie, setSessionCookie } from "@/lib/session-cookie";
 import { errorResponse } from "@/lib/sessions";
 import { createHash } from "node:crypto";
 import { nanoid } from "nanoid";
+import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 
 export const runtime = "nodejs";
@@ -18,11 +20,17 @@ export async function POST(request: Request) {
     assertValidPaySignature(rawBody, request.headers.get(PAY_SIGNATURE_HEADER));
 
     const payload = paySchema.parse(JSON.parse(rawBody || "{}"));
+    const sessionId = payload.sessionId ?? readSessionCookie(request);
+
+    if (!sessionId) {
+      return errorResponse("Session cookie not found", 404);
+    }
+
     const providerEventId =
-      payload.providerEventId ?? buildProviderEventId(rawBody);
+      payload.providerEventId ?? buildProviderEventId(`${sessionId}:${rawBody}`);
     const user = await prisma.user.findUnique({
       where: {
-        sessionId: payload.sessionId,
+        sessionId,
       },
       select: {
         id: true,
@@ -124,7 +132,7 @@ export async function POST(request: Request) {
       return errorResponse("Subscription not found for payment event", 409);
     }
 
-    return Response.json({
+    const response = NextResponse.json({
       sessionId: user.sessionId,
       providerEventId,
       idempotentReplay: result.idempotentReplay,
@@ -132,6 +140,9 @@ export async function POST(request: Request) {
       startedAt: result.subscription.startedAt?.toISOString() ?? null,
       expiresAt: result.subscription.expiresAt?.toISOString() ?? null,
     });
+    setSessionCookie(response, user.sessionId);
+
+    return response;
   } catch (error) {
     if (error instanceof ZodError) {
       return errorResponse("Invalid payment payload", 400, error.flatten());

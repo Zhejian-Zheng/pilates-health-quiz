@@ -212,7 +212,7 @@ function assertStringInSet(value: unknown, fieldName: string, allowedValues: str
 }
 
 export const paySchema = z.object({
-  sessionId: z.string().trim().min(1).max(120),
+  sessionId: z.string().trim().min(1).max(120).optional(),
   providerEventId: z.string().trim().min(1).max(160).optional(),
   eventType: z.string().trim().min(1).max(80).default("PAYMENT_SUCCEEDED"),
   payload: jsonValueSchema.default({}),

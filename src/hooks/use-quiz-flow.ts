@@ -93,7 +93,9 @@ export function useQuizFlow() {
         setCurrentStep(restoredStep);
 
         if (progress.status === "COMPLETED") {
-          const resultResponse = await fetch(`/api/results/${progress.sessionId}`);
+          const resultResponse = await fetch("/api/results/current", {
+            credentials: "same-origin",
+          });
 
           if (resultResponse.ok) {
             setResult((await resultResponse.json()) as ResultResponse);
@@ -386,6 +388,7 @@ export function useQuizFlow() {
       const activeSessionId = sessionId ?? (await ensureSession());
       const response = await fetch(`/api/sessions/${activeSessionId}/complete`, {
         method: "POST",
+        credentials: "same-origin",
       });
 
       if (!response.ok) {
@@ -393,7 +396,7 @@ export function useQuizFlow() {
         throw new Error(body?.error?.message ?? String(t.completeError));
       }
 
-      await fetchResult(activeSessionId);
+      await fetchResult();
     } catch (completeError) {
       setError(
         completeError instanceof Error
@@ -405,8 +408,10 @@ export function useQuizFlow() {
     }
   }
 
-  async function fetchResult(activeSessionId: string) {
-    const response = await fetch(`/api/results/${activeSessionId}`);
+  async function fetchResult() {
+    const response = await fetch("/api/results/current", {
+      credentials: "same-origin",
+    });
 
     if (!response.ok) {
       throw new Error(String(t.resultError));
@@ -417,21 +422,17 @@ export function useQuizFlow() {
   }
 
   async function unlockResult() {
-    if (!sessionId) {
-      return;
-    }
-
     setIsSaving(true);
     setError(null);
 
     try {
       const response = await fetch("/api/pay", {
         method: "POST",
+        credentials: "same-origin",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          sessionId,
           payload: {
             source: "demo-paywall",
           },
@@ -442,7 +443,7 @@ export function useQuizFlow() {
         throw new Error(String(t.paymentError));
       }
 
-      await fetchResult(sessionId);
+      await fetchResult();
     } catch (paymentError) {
       setError(
         paymentError instanceof Error ? paymentError.message : String(t.paymentError),
@@ -457,14 +458,17 @@ export function useQuizFlow() {
     setError(null);
 
     try {
-      const activeSessionId = sessionId ?? (await ensureSession());
+      if (!sessionId) {
+        await ensureSession();
+      }
+
       const response = await fetch("/api/pay", {
         method: "POST",
+        credentials: "same-origin",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          sessionId: activeSessionId,
           payload: {
             source: "account-settings",
           },
@@ -476,7 +480,7 @@ export function useQuizFlow() {
       }
 
       if (result) {
-        await fetchResult(activeSessionId);
+        await fetchResult();
       } else {
         setSyncStatus("saved");
       }
