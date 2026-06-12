@@ -46,6 +46,15 @@ export const createSessionSchema = z.object({
   flowId: z.string().trim().min(1).max(80).default("2117"),
 });
 
+export const authSchema = z.object({
+  displayName: z.preprocess(
+    (value) => (typeof value === "string" && value.trim() === "" ? undefined : value),
+    z.string().trim().min(1).max(80).optional(),
+  ),
+  email: z.string().trim().toLowerCase().email().max(160),
+  password: z.string().min(6).max(120),
+});
+
 export const saveAnswersSchema = z.object({
   currentStep: z.number().int().min(0).max(200).optional(),
   answers: z.array(answerSchema).min(1).max(20),

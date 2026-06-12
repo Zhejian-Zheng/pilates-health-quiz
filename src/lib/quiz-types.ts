@@ -40,6 +40,7 @@ export type ProgressAnswer = {
 
 export type SessionProgress = {
   sessionId: string;
+  authProfile?: AuthProfile | null;
   currentStep: number;
   status: string;
   subscriptionStatus: string;

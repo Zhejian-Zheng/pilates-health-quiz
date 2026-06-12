@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 
 import {
-  AUTH_ACCOUNTS_STORAGE_KEY,
   AUTH_STORAGE_KEY,
   copy,
   LANGUAGE_STORAGE_KEY,
@@ -19,6 +18,11 @@ import type {
   SessionProgress,
   SyncStatus,
 } from "@/lib/quiz-types";
+
+type AuthResponse = {
+  profile: AuthProfile;
+  progress: SessionProgress;
+};
 
 export function useQuizFlow() {
   const [language, setLanguage] = useState<Language>(() => {
@@ -75,22 +79,15 @@ export function useQuizFlow() {
           return;
         }
 
+        const progress = (await response.json()) as SessionProgress;
+
         if (!readStoredAuthProfile()) {
-          const guestProfile = getGuestProfile();
-          localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(guestProfile));
-          setAuthProfile(guestProfile);
+          const restoredProfile = progress.authProfile ?? getGuestProfile();
+          localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(restoredProfile));
+          setAuthProfile(restoredProfile);
         }
 
-        const progress = (await response.json()) as SessionProgress;
-        const restoredAnswers = Object.fromEntries(
-          progress.answers.map((answer) => [answer.questionKey, answer.value]),
-        ) as Record<string, AnswerValue>;
-
-        setSessionId(progress.sessionId);
-        setAnswers(restoredAnswers);
-        const restoredStep = Math.min(progress.currentStep, questions.length);
-        highestPersistedStepRef.current = restoredStep;
-        setCurrentStep(restoredStep);
+        applyProgress(progress);
 
         if (progress.status === "COMPLETED") {
           const resultResponse = await fetch("/api/results/current", {
@@ -125,46 +122,44 @@ export function useQuizFlow() {
     setError(null);
   }
 
-  function submitAuth(
+  async function submitAuth(
     mode: Exclude<AuthMode, "guest">,
     credentials: { displayName?: string; email: string; password: string },
   ) {
     const email = credentials.email.trim();
-    const normalizedEmail = email.toLowerCase();
 
     if (!email.includes("@") || credentials.password.length < 6) {
       setError(String(t.authInvalid));
       return;
     }
 
-    const storedAccounts = readStoredAccounts();
-    const registeredName = storedAccounts[normalizedEmail];
-    const fallbackName = email.split("@")[0];
-    const submittedName = credentials.displayName?.trim();
-    const displayName =
-      mode === "register"
-        ? submittedName || fallbackName
-        : registeredName || fallbackName;
-
-    if (mode === "register") {
-      localStorage.setItem(
-        AUTH_ACCOUNTS_STORAGE_KEY,
-        JSON.stringify({
-          ...storedAccounts,
-          [normalizedEmail]: displayName,
+    try {
+      setError(null);
+      const response = await fetch(`/api/auth/${mode}`, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          displayName: credentials.displayName,
+          email,
+          password: credentials.password,
         }),
-      );
+      });
+
+      if (!response.ok) {
+        throw new Error(String(t.authInvalid));
+      }
+
+      const auth = (await response.json()) as AuthResponse;
+      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(auth.profile));
+      setAuthProfile(auth.profile);
+      setResult(null);
+      applyProgress(auth.progress);
+    } catch (authError) {
+      setError(authError instanceof Error ? authError.message : String(t.authInvalid));
     }
-
-    const profile: AuthProfile = {
-      mode,
-      displayName,
-      email,
-    };
-
-    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(profile));
-    setAuthProfile(profile);
-    setError(null);
   }
 
   function returnHome() {
@@ -174,7 +169,18 @@ export function useQuizFlow() {
   }
 
   function logout() {
+    void fetch("/api/auth/logout", {
+      method: "POST",
+      credentials: "same-origin",
+    });
     returnHome();
+    sessionPromiseRef.current = null;
+    setSessionId(null);
+    setAnswers({});
+    setNumberDrafts({});
+    setResult(null);
+    setCurrentStep(0);
+    highestPersistedStepRef.current = 0;
   }
 
   async function ensureSession() {
@@ -201,8 +207,7 @@ export function useQuizFlow() {
       }
 
       const progress = (await response.json()) as SessionProgress;
-      setSessionId(progress.sessionId);
-      highestPersistedStepRef.current = Math.min(progress.currentStep, questions.length);
+      applyProgress(progress);
       return progress.sessionId;
     })().finally(() => {
       sessionPromiseRef.current = null;
@@ -513,6 +518,18 @@ export function useQuizFlow() {
     setError(null);
   }
 
+  function applyProgress(progress: SessionProgress) {
+    const restoredAnswers = Object.fromEntries(
+      progress.answers.map((answer) => [answer.questionKey, answer.value]),
+    ) as Record<string, AnswerValue>;
+    const restoredStep = Math.min(progress.currentStep, questions.length);
+
+    setSessionId(progress.sessionId);
+    setAnswers(restoredAnswers);
+    highestPersistedStepRef.current = restoredStep;
+    setCurrentStep(restoredStep);
+  }
+
   return {
     actions: {
       changeLanguage,
@@ -576,27 +593,6 @@ function readStoredAuthProfile() {
   }
 
   return null;
-}
-
-function readStoredAccounts() {
-  const storedAccounts = window.localStorage.getItem(AUTH_ACCOUNTS_STORAGE_KEY);
-
-  if (!storedAccounts) {
-    return {};
-  }
-
-  try {
-    const parsed = JSON.parse(storedAccounts) as Record<string, unknown>;
-
-    return Object.fromEntries(
-      Object.entries(parsed).filter(
-        (entry): entry is [string, string] => typeof entry[1] === "string",
-      ),
-    );
-  } catch {
-    window.localStorage.removeItem(AUTH_ACCOUNTS_STORAGE_KEY);
-    return {};
-  }
 }
 
 function getGuestProfile(): AuthProfile {

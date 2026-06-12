@@ -5,6 +5,8 @@ export async function getLatestSessionProgress(sessionId: string) {
     where: { sessionId },
     select: {
       sessionId: true,
+      email: true,
+      displayName: true,
       subscription: {
         select: {
           status: true,
@@ -55,6 +57,13 @@ export function toSessionProgress(user: LatestSessionProgress) {
 
   return {
     sessionId: user.sessionId,
+    authProfile: user.email
+      ? {
+          mode: "login",
+          displayName: user.displayName ?? user.email.split("@")[0],
+          email: user.email,
+        }
+      : null,
     assessmentId: assessment.id,
     flowId: assessment.flowId,
     status: assessment.status,

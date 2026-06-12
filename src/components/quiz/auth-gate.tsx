@@ -18,7 +18,7 @@ export function AuthGate({
   onSubmitAuth: (
     mode: AuthFormMode,
     credentials: { displayName?: string; email: string; password: string },
-  ) => void;
+  ) => void | Promise<void>;
 }) {
   const t = copy[language];
   const [mode, setMode] = useState<AuthFormMode>("login");

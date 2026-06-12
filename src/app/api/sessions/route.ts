@@ -2,6 +2,7 @@ import { nanoid } from "nanoid";
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 
+import { readAccountCookie, setAccountCookie } from "@/lib/account-cookie";
 import { prisma } from "@/lib/prisma";
 import { createSessionSchema } from "@/lib/schemas";
 import { setSessionCookie } from "@/lib/session-cookie";
@@ -17,23 +18,39 @@ export async function POST(request: Request) {
   try {
     const body = await request.json().catch(() => ({}));
     const { flowId } = createSessionSchema.parse(body);
-    const sessionId = nanoid();
+    const accountUserId = readAccountCookie(request);
+    const accountUser = accountUserId
+      ? await prisma.user.findUnique({
+          where: { id: accountUserId },
+          select: { id: true, sessionId: true },
+        })
+      : null;
+    const sessionId = accountUser?.sessionId ?? nanoid();
 
-    await prisma.user.create({
-      data: {
-        sessionId,
-        subscription: {
-          create: {
-            status: "INACTIVE",
+    if (accountUser) {
+      await prisma.assessmentSession.create({
+        data: {
+          userId: accountUser.id,
+          flowId,
+        },
+      });
+    } else {
+      await prisma.user.create({
+        data: {
+          sessionId,
+          subscription: {
+            create: {
+              status: "INACTIVE",
+            },
+          },
+          assessments: {
+            create: {
+              flowId,
+            },
           },
         },
-        assessments: {
-          create: {
-            flowId,
-          },
-        },
-      },
-    });
+      });
+    }
 
     const user = await getLatestSessionProgress(sessionId);
     const progress = user ? toSessionProgress(user) : null;
@@ -44,6 +61,9 @@ export async function POST(request: Request) {
 
     const response = NextResponse.json(progress, { status: 201 });
     setSessionCookie(response, sessionId);
+    if (accountUser) {
+      setAccountCookie(response, accountUser.id);
+    }
 
     return response;
   } catch (error) {
