@@ -121,6 +121,40 @@ describe("assessHealth", () => {
       }),
     ).toThrow(HealthAssessmentError);
   });
+
+  it.each([
+    ["NaN height", { heightCm: Number.NaN }],
+    ["infinite current weight", { currentWeightKg: Number.POSITIVE_INFINITY }],
+    ["infinite target weight", { targetWeightKg: Number.NEGATIVE_INFINITY }],
+  ])("rejects non-finite %s input", (_label, override) => {
+    expect(() =>
+      assessHealth({
+        ...baseProfile,
+        ...override,
+      }),
+    ).toThrow(HealthAssessmentError);
+  });
+
+  it("rejects unsupported activity levels from runtime payloads", () => {
+    expect(() =>
+      assessHealth({
+        ...baseProfile,
+        activityLevel: "twice_per_century" as HealthProfileInput["activityLevel"],
+      }),
+    ).toThrow(HealthAssessmentError);
+  });
+
+  it.each([
+    ["lower", 44],
+    ["upper", 116],
+  ])("accepts the %s target-weight ratio boundary", (_label, targetWeightKg) => {
+    expect(() =>
+      assessHealth({
+        ...baseProfile,
+        targetWeightKg,
+      }),
+    ).not.toThrow();
+  });
 });
 
 describe("getBmiCategory", () => {

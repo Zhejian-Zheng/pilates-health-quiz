@@ -55,6 +55,40 @@ describe("validateAnswerTransition", () => {
     ).toThrow(FunnelStateError);
   });
 
+  it("rejects currentStep moving backwards", () => {
+    expect(() =>
+      validateAnswerTransition(
+        3,
+        2,
+        [
+          {
+            stepKey: "goal",
+            questionKey: "goal",
+            value: "Lose weight",
+          },
+        ],
+        ["ageRange", "gender", "goal"],
+      ),
+    ).toThrow(FunnelStateError);
+  });
+
+  it("allows editing an earlier answered step without moving progress backwards", () => {
+    expect(() =>
+      validateAnswerTransition(
+        4,
+        4,
+        [
+          {
+            stepKey: "goal",
+            questionKey: "goal",
+            value: "Improve posture",
+          },
+        ],
+        ["ageRange", "gender", "goal", "activityLevel"],
+      ),
+    ).not.toThrow();
+  });
+
   it("allows optional steps to be skipped after required steps are answered", () => {
     expect(() =>
       validateAnswerTransition(

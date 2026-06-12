@@ -215,17 +215,33 @@ function validateProfile(profile: HealthProfileInput) {
     throw new HealthAssessmentError("Age must be an integer between 13 and 100");
   }
 
-  if (profile.heightCm < 100 || profile.heightCm > 250) {
+  if (!ACTIVITY_LEVELS.includes(profile.activityLevel)) {
+    throw new HealthAssessmentError("Activity level is not supported");
+  }
+
+  if (
+    !Number.isFinite(profile.heightCm) ||
+    profile.heightCm < 100 ||
+    profile.heightCm > 250
+  ) {
     throw new HealthAssessmentError("Height must be between 100cm and 250cm");
   }
 
-  if (profile.currentWeightKg < 30 || profile.currentWeightKg > 300) {
+  if (
+    !Number.isFinite(profile.currentWeightKg) ||
+    profile.currentWeightKg < 30 ||
+    profile.currentWeightKg > 300
+  ) {
     throw new HealthAssessmentError(
       "Current weight must be between 30kg and 300kg",
     );
   }
 
-  if (profile.targetWeightKg < 30 || profile.targetWeightKg > 300) {
+  if (
+    !Number.isFinite(profile.targetWeightKg) ||
+    profile.targetWeightKg < 30 ||
+    profile.targetWeightKg > 300
+  ) {
     throw new HealthAssessmentError(
       "Target weight must be between 30kg and 300kg",
     );

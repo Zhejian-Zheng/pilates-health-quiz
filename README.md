@@ -285,11 +285,15 @@ Current coverage includes:
 - Health assessment algorithm unit tests.
 - BMI category boundaries.
 - Calorie and target projection behavior.
-- Invalid age, height, current weight, target weight, and unrealistic target boundaries.
-- API boundary validation for unsupported enum values and out-of-range saved answers.
+- Invalid age, height, current weight, target weight, non-finite numbers, unsupported activity levels, and unrealistic target boundaries.
+- API boundary validation for unsupported enum values, non-numeric injection attempts, malformed answer payloads, and out-of-range saved answers.
 - Database-backed API flow for session creation, answer persistence, completion, unpaid result gating, `/pay`, and paid result unlocking.
 - Missing required answer behavior for the complete endpoint.
-- Funnel state-machine boundaries for skipped steps, unknown question keys, repeated submissions, and current-step lag caused by concurrent saves.
+- Cookie-backed current endpoint protection when no session cookie is present.
+- Funnel state-machine boundaries for skipped steps, backwards progress, unknown question keys, repeated submissions, and current-step lag caused by concurrent saves.
+- Sequential duplicate-answer updates, verifying the newer value replaces the previous one without adding another row.
+- A true concurrent duplicate-answer integration case using parallel PATCH requests, verifying only one answer row is retained for the same question key.
+- Completed assessments reject later answer updates.
 - Payment webhook signature helper behavior and idempotent replay handling.
 
 The API flow tests run when `DATABASE_URL` is available. Without it, they are skipped, while unit-level algorithm, schema, funnel, and payment helper tests still run in CI.
