@@ -51,6 +51,7 @@ export function useQuizFlow() {
   const pendingSavesRef = useRef<Promise<boolean>[]>([]);
   const pendingSaveCountRef = useRef(0);
   const saveFailureRef = useRef(false);
+  const highestPersistedStepRef = useRef(0);
 
   const t = copy[language];
   const currentQuestion = questions[currentStep];
@@ -94,13 +95,16 @@ export function useQuizFlow() {
 
         setSessionId(progress.sessionId);
         setAnswers(restoredAnswers);
-        setCurrentStep(Math.min(progress.currentStep, questions.length));
+        const restoredStep = Math.min(progress.currentStep, questions.length);
+        highestPersistedStepRef.current = restoredStep;
+        setCurrentStep(restoredStep);
 
         if (progress.status === "COMPLETED") {
           const resultResponse = await fetch(`/api/results/${progress.sessionId}`);
 
           if (resultResponse.ok) {
             setResult((await resultResponse.json()) as ResultResponse);
+            highestPersistedStepRef.current = questions.length;
             setCurrentStep(questions.length);
           }
         }
@@ -203,6 +207,7 @@ export function useQuizFlow() {
       const progress = (await response.json()) as SessionProgress;
       localStorage.setItem(SESSION_STORAGE_KEY, progress.sessionId);
       setSessionId(progress.sessionId);
+      highestPersistedStepRef.current = Math.min(progress.currentStep, questions.length);
       return progress.sessionId;
     })().finally(() => {
       sessionPromiseRef.current = null;
@@ -219,6 +224,11 @@ export function useQuizFlow() {
       Math.max(currentStep, questionIndex + 1),
       questions.length,
     );
+    const persistedStep = Math.min(
+      Math.max(highestPersistedStepRef.current, nextStep),
+      questions.length,
+    );
+    highestPersistedStepRef.current = persistedStep;
 
     setAnswers((currentAnswers) => ({
       ...currentAnswers,
@@ -228,7 +238,7 @@ export function useQuizFlow() {
 
     const precedingSaves = [...pendingSavesRef.current];
     const savePromise = Promise.allSettled(precedingSaves).then(() =>
-      persistAnswer(question, value, nextStep),
+      persistAnswer(question, value, persistedStep),
     );
     trackPendingSave(savePromise);
   }
@@ -261,6 +271,11 @@ export function useQuizFlow() {
         throw new Error(String(t.saveError));
       }
 
+      const progress = (await response.json()) as SessionProgress;
+      highestPersistedStepRef.current = Math.min(
+        Math.max(highestPersistedStepRef.current, progress.currentStep),
+        questions.length,
+      );
       return true;
     } catch (saveError) {
       saveFailureRef.current = true;
@@ -486,6 +501,7 @@ export function useQuizFlow() {
     pendingSavesRef.current = [];
     pendingSaveCountRef.current = 0;
     saveFailureRef.current = false;
+    highestPersistedStepRef.current = 0;
     setSessionId(null);
     setCurrentStep(0);
     setAnswers({});

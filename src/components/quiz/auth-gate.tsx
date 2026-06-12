@@ -40,17 +40,6 @@ export function AuthGate({
         <h1 className="mt-4 text-4xl font-semibold tracking-[-0.02em] text-[#12312c] sm:text-5xl">
           {String(t.authTitle)}
         </h1>
-        <div className="mt-5 flex flex-wrap gap-2 text-xs font-semibold text-[#52746d]">
-          <span className="rounded-full bg-[#e2f4ef] px-3 py-1.5">
-            {language === "zh" ? "隐私保护" : "Private session"}
-          </span>
-          <span className="rounded-full bg-[#e2f4ef] px-3 py-1.5">
-            {language === "zh" ? "服务端计算" : "Server-side scoring"}
-          </span>
-          <span className="rounded-full bg-[#e2f4ef] px-3 py-1.5">
-            {language === "zh" ? "1 分钟完成" : "1-minute assessment"}
-          </span>
-        </div>
       </div>
 
       <div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_220px]">
