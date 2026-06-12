@@ -1,6 +1,5 @@
 import type { Language, Question, QuizCopy } from "@/lib/quiz-types";
 
-export const SESSION_STORAGE_KEY = "pilates-health-quiz-session-id";
 export const LANGUAGE_STORAGE_KEY = "pilates-health-quiz-language";
 export const AUTH_STORAGE_KEY = "pilates-health-quiz-auth";
 export const AUTH_ACCOUNTS_STORAGE_KEY = "pilates-health-quiz-accounts";
@@ -24,10 +23,10 @@ export const copy = {
     continue: "Continue",
     back: "Back",
     saved: "Saved",
-    syncIdle: "Saved locally after each answer",
+    syncIdle: "Saved securely after each answer",
     syncing: "Syncing in background...",
     synced: "Synced",
-    syncError: "Saved locally. Sync needs retry.",
+    syncError: "Kept on this device. Sync needs retry.",
     finishingSync: "Finishing sync...",
     result: "Result",
     step: "Step",
@@ -116,10 +115,10 @@ export const copy = {
     continue: "继续",
     back: "返回",
     saved: "已保存",
-    syncIdle: "每题都会先保存到本地",
+    syncIdle: "每题都会安全同步到当前会话",
     syncing: "后台同步中...",
     synced: "已同步",
-    syncError: "已本地保存，同步需重试",
+    syncError: "当前设备已保留，同步需重试",
     finishingSync: "正在完成同步...",
     result: "结果",
     step: "第",

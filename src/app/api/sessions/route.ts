@@ -1,8 +1,10 @@
 import { nanoid } from "nanoid";
+import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 
 import { prisma } from "@/lib/prisma";
 import { createSessionSchema } from "@/lib/schemas";
+import { setSessionCookie } from "@/lib/session-cookie";
 import {
   errorResponse,
   getLatestSessionProgress,
@@ -40,7 +42,10 @@ export async function POST(request: Request) {
       return errorResponse("Session was created but could not be loaded", 500);
     }
 
-    return Response.json(progress, { status: 201 });
+    const response = NextResponse.json(progress, { status: 201 });
+    setSessionCookie(response, sessionId);
+
+    return response;
   } catch (error) {
     if (error instanceof ZodError) {
       return errorResponse("Invalid session payload", 400, error.flatten());

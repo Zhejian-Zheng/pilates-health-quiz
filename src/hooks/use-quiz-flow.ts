@@ -8,7 +8,6 @@ import {
   copy,
   LANGUAGE_STORAGE_KEY,
   questions,
-  SESSION_STORAGE_KEY,
 } from "@/lib/quiz-content";
 import type {
   AnswerValue,
@@ -66,26 +65,20 @@ export function useQuizFlow() {
 
   useEffect(() => {
     async function restoreProgress() {
-      const storedSessionId = localStorage.getItem(SESSION_STORAGE_KEY);
-
-      if (!storedSessionId) {
-        setIsLoading(false);
-        return;
-      }
-
-      if (!readStoredAuthProfile()) {
-        const guestProfile = getGuestProfile();
-        localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(guestProfile));
-        setAuthProfile(guestProfile);
-      }
-
       try {
-        const response = await fetch(`/api/sessions/${storedSessionId}`);
+        const response = await fetch("/api/sessions/current", {
+          credentials: "same-origin",
+        });
 
         if (!response.ok) {
-          localStorage.removeItem(SESSION_STORAGE_KEY);
           setIsLoading(false);
           return;
+        }
+
+        if (!readStoredAuthProfile()) {
+          const guestProfile = getGuestProfile();
+          localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(guestProfile));
+          setAuthProfile(guestProfile);
         }
 
         const progress = (await response.json()) as SessionProgress;
@@ -194,6 +187,7 @@ export function useQuizFlow() {
     sessionPromiseRef.current = (async () => {
       const response = await fetch("/api/sessions", {
         method: "POST",
+        credentials: "same-origin",
         headers: {
           "Content-Type": "application/json",
         },
@@ -205,7 +199,6 @@ export function useQuizFlow() {
       }
 
       const progress = (await response.json()) as SessionProgress;
-      localStorage.setItem(SESSION_STORAGE_KEY, progress.sessionId);
       setSessionId(progress.sessionId);
       highestPersistedStepRef.current = Math.min(progress.currentStep, questions.length);
       return progress.sessionId;
@@ -252,6 +245,7 @@ export function useQuizFlow() {
       const activeSessionId = await ensureSession();
       const response = await fetch(`/api/sessions/${activeSessionId}/answers`, {
         method: "PATCH",
+        credentials: "same-origin",
         headers: {
           "Content-Type": "application/json",
         },
@@ -496,7 +490,10 @@ export function useQuizFlow() {
   }
 
   function startOver() {
-    localStorage.removeItem(SESSION_STORAGE_KEY);
+    void fetch("/api/sessions/current", {
+      method: "DELETE",
+      credentials: "same-origin",
+    });
     sessionPromiseRef.current = null;
     pendingSavesRef.current = [];
     pendingSaveCountRef.current = 0;

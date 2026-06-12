@@ -20,6 +20,9 @@ describe.runIf(hasDatabase).sequential("assessment API flow", () => {
       const { POST: createSession } = await import(
         "../src/app/api/sessions/route"
       );
+      const { GET: getCurrentSession } = await import(
+        "../src/app/api/sessions/current/route"
+      );
       const { PATCH: saveAnswers } = await import(
         "../src/app/api/sessions/[sessionId]/answers/route"
       );
@@ -41,6 +44,9 @@ describe.runIf(hasDatabase).sequential("assessment API flow", () => {
 
       expect(createdResponse.status).toBe(201);
       expect(created.status).toBe("IN_PROGRESS");
+      expect(createdResponse.headers.get("set-cookie")).toContain(
+        "pilates_health_quiz_session",
+      );
 
       const saved = await saveAnswersSequentially(
         saveAnswers,
@@ -50,6 +56,19 @@ describe.runIf(hasDatabase).sequential("assessment API flow", () => {
       );
 
       expect(saved.answers).toHaveLength(8);
+
+      const currentResponse = await getCurrentSession(
+        new Request("http://test.local/api/sessions/current", {
+          headers: {
+            cookie: toCookieHeader(createdResponse),
+          },
+        }),
+      );
+      const current = await currentResponse.json();
+
+      expect(currentResponse.status).toBe(200);
+      expect(current.sessionId).toBe(created.sessionId);
+      expect(current.answers).toHaveLength(8);
 
       const completedResponse = await completeAssessment(
         new Request(
@@ -363,6 +382,10 @@ function jsonRequest(url: string, body: unknown, method = "POST") {
     },
     body: JSON.stringify(body),
   });
+}
+
+function toCookieHeader(response: Response) {
+  return response.headers.get("set-cookie")?.split(";")[0] ?? "";
 }
 
 async function saveAnswersSequentially(
