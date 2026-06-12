@@ -95,6 +95,7 @@ describe.runIf(hasDatabase).sequential("assessment API flow", () => {
         "../src/app/api/results/current/route"
       );
       const { POST: pay } = await import("../src/app/api/pay/route");
+      const { prisma } = await import("../src/lib/prisma");
 
       const createdResponse = await createSession(
         jsonRequest("http://test.local/api/sessions", { flowId: "2117" }),
@@ -144,6 +145,62 @@ describe.runIf(hasDatabase).sequential("assessment API flow", () => {
       expect(completedResponse.status).toBe(200);
       expect(completed.status).toBe("COMPLETED");
 
+      const storedAssessment = await prisma.assessmentSession.findUniqueOrThrow({
+        where: {
+          id: completed.assessmentId as string,
+        },
+        select: {
+          status: true,
+          completedAt: true,
+          profile: {
+            select: {
+              gender: true,
+              goal: true,
+              age: true,
+              heightCm: true,
+              currentWeightKg: true,
+              targetWeightKg: true,
+              activityLevel: true,
+            },
+          },
+          result: {
+            select: {
+              bmi: true,
+              bmiCategory: true,
+              recommendedCalories: true,
+              targetDate: true,
+              summary: true,
+              detailedRecommendation: true,
+              projectionCurve: true,
+            },
+          },
+        },
+      });
+      const storedProjectionCurve =
+        storedAssessment.result?.projectionCurve as unknown;
+
+      expect(storedAssessment.status).toBe("COMPLETED");
+      expect(storedAssessment.completedAt).toBeInstanceOf(Date);
+      expect(storedAssessment.profile).toMatchObject({
+        gender: "female",
+        goal: "Lose weight",
+        age: 30,
+        heightCm: 165,
+        currentWeightKg: 80,
+        targetWeightKg: 70,
+        activityLevel: "moderate",
+      });
+      expect(storedAssessment.result).toMatchObject({
+        bmi: 29.4,
+        bmiCategory: "OVERWEIGHT",
+      });
+      expect(storedAssessment.result?.recommendedCalories).toBeGreaterThan(0);
+      expect(storedAssessment.result?.targetDate).toBeInstanceOf(Date);
+      expect(storedAssessment.result?.summary).toContain("BMI");
+      expect(storedAssessment.result?.detailedRecommendation).toBeDefined();
+      expect(Array.isArray(storedProjectionCurve)).toBe(true);
+      expect((storedProjectionCurve as unknown[]).length).toBeGreaterThan(1);
+
       const lockedResponse = await getResult(
         new Request(`http://test.local/api/results/${created.sessionId}`),
         context,
@@ -153,8 +210,14 @@ describe.runIf(hasDatabase).sequential("assessment API flow", () => {
       expect(lockedResponse.status).toBe(200);
       expect(locked.access).toBe("LOCKED");
       expect(locked.result.bmi).toBe(29.4);
-      expect(locked.result.projectionCurve).toBeUndefined();
-      expect(locked.result.detailedRecommendation).toBeUndefined();
+      for (const protectedField of [
+        "recommendedCalories",
+        "targetDate",
+        "detailedRecommendation",
+        "projectionCurve",
+      ]) {
+        expect(protectedField in locked.result).toBe(false);
+      }
       expect(locked.result.paywall.protectedFields).toContain(
         "projectionCurve",
       );
@@ -186,6 +249,27 @@ describe.runIf(hasDatabase).sequential("assessment API flow", () => {
       expect(paid.idempotentReplay).toBe(false);
       expect(paid.subscriptionStatus).toBe("ACTIVE");
 
+      const paidUser = await prisma.user.findUniqueOrThrow({
+        where: {
+          sessionId: created.sessionId,
+        },
+        select: {
+          subscription: {
+            select: {
+              status: true,
+              startedAt: true,
+              expiresAt: true,
+            },
+          },
+        },
+      });
+
+      expect(paidUser.subscription).toMatchObject({
+        status: "ACTIVE",
+      });
+      expect(paidUser.subscription?.startedAt).toBeInstanceOf(Date);
+      expect(paidUser.subscription?.expiresAt).toBeInstanceOf(Date);
+
       const replayResponse = await pay(
         jsonRequest("http://test.local/api/pay", {
           providerEventId: `test_payment_${created.sessionId}`,
@@ -209,6 +293,8 @@ describe.runIf(hasDatabase).sequential("assessment API flow", () => {
       expect(fullResponse.status).toBe(200);
       expect(full.access).toBe("FULL");
       expect(full.result.recommendedCalories).toBeGreaterThan(0);
+      expect(full.result.targetDate).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+      expect(full.result.detailedRecommendation).toBeDefined();
       expect(full.result.projectionCurve.length).toBeGreaterThan(1);
       expect(full.result.paywall).toBeUndefined();
 
@@ -224,6 +310,85 @@ describe.runIf(hasDatabase).sequential("assessment API flow", () => {
       expect(fullCurrentResponse.status).toBe(200);
       expect(fullCurrent.access).toBe("FULL");
       expect(fullCurrent.result.projectionCurve.length).toBeGreaterThan(1);
+    },
+    60_000,
+  );
+
+  it(
+    "restores interrupted progress through both session id and session cookie",
+    async () => {
+      const { POST: createSession } = await import(
+        "../src/app/api/sessions/route"
+      );
+      const { GET: getSessionById } = await import(
+        "../src/app/api/sessions/[sessionId]/route"
+      );
+      const { GET: getCurrentSession } = await import(
+        "../src/app/api/sessions/current/route"
+      );
+      const { PATCH: saveAnswers } = await import(
+        "../src/app/api/sessions/[sessionId]/answers/route"
+      );
+
+      const createdResponse = await createSession(
+        jsonRequest("http://test.local/api/sessions", { flowId: "2117" }),
+      );
+      const created = await createdResponse.json();
+      const context = {
+        params: Promise.resolve({ sessionId: created.sessionId as string }),
+      };
+      const partialAnswers = healthAnswers.slice(0, 4);
+
+      await saveAnswersSequentially(
+        saveAnswers,
+        created.sessionId,
+        context,
+        partialAnswers,
+      );
+
+      const byIdResponse = await getSessionById(
+        new Request(`http://test.local/api/sessions/${created.sessionId}`),
+        context,
+      );
+      const byId = await byIdResponse.json();
+      const currentResponse = await getCurrentSession(
+        new Request("http://test.local/api/sessions/current", {
+          headers: {
+            cookie: toCookieHeader(createdResponse),
+          },
+        }),
+      );
+      const current = await currentResponse.json();
+      const answerValues = Object.fromEntries(
+        current.answers.map((answer: { questionKey: string; value: unknown }) => [
+          answer.questionKey,
+          answer.value,
+        ]),
+      );
+
+      expect(byIdResponse.status).toBe(200);
+      expect(currentResponse.status).toBe(200);
+      expect(byId).toMatchObject({
+        sessionId: created.sessionId,
+        status: "IN_PROGRESS",
+        currentStep: 4,
+        subscriptionStatus: "INACTIVE",
+      });
+      expect(current).toMatchObject({
+        sessionId: created.sessionId,
+        status: "IN_PROGRESS",
+        currentStep: 4,
+        subscriptionStatus: "INACTIVE",
+      });
+      expect(current.answers).toHaveLength(4);
+      expect(answerValues).toMatchObject({
+        ageRange: "30-39",
+        gender: "female",
+        goal: "Lose weight",
+        activityLevel: "moderate",
+      });
+      expect(current.answers[0].createdAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+      expect(current.answers[0].updatedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
     },
     60_000,
   );
@@ -304,6 +469,45 @@ describe.runIf(hasDatabase).sequential("assessment API flow", () => {
 
       expect(skippedResponse.status).toBe(409);
       expect(skipped.error.message).toContain("Cannot skip");
+    },
+    60_000,
+  );
+
+  it(
+    "rejects out-of-order answer submissions before the step is reachable",
+    async () => {
+      const { POST: createSession } = await import(
+        "../src/app/api/sessions/route"
+      );
+      const { PATCH: saveAnswers } = await import(
+        "../src/app/api/sessions/[sessionId]/answers/route"
+      );
+
+      const createdResponse = await createSession(
+        jsonRequest("http://test.local/api/sessions", { flowId: "2117" }),
+      );
+      const created = await createdResponse.json();
+      const context = {
+        params: Promise.resolve({ sessionId: created.sessionId as string }),
+      };
+
+      const outOfOrderResponse = await saveAnswers(
+        jsonRequest(
+          `http://test.local/api/sessions/${created.sessionId}/answers`,
+          {
+            currentStep: 1,
+            answers: [
+              { stepKey: "gender", questionKey: "gender", value: "female" },
+            ],
+          },
+          "PATCH",
+        ),
+        context,
+      );
+      const outOfOrder = await outOfOrderResponse.json();
+
+      expect(outOfOrderResponse.status).toBe(409);
+      expect(outOfOrder.error.message).toContain("before reaching that step");
     },
     60_000,
   );
@@ -591,6 +795,107 @@ describe.runIf(hasDatabase).sequential("assessment API flow", () => {
 
       expect(invalidResponse.status).toBe(422);
       expect(invalid.error.message).toContain("heightCm");
+    },
+    60_000,
+  );
+
+  it(
+    "rejects numeric injection attempts at the answer API boundary",
+    async () => {
+      const { POST: createSession } = await import(
+        "../src/app/api/sessions/route"
+      );
+      const { PATCH: saveAnswers } = await import(
+        "../src/app/api/sessions/[sessionId]/answers/route"
+      );
+
+      const createdResponse = await createSession(
+        jsonRequest("http://test.local/api/sessions", { flowId: "2117" }),
+      );
+      const created = await createdResponse.json();
+      const context = {
+        params: Promise.resolve({ sessionId: created.sessionId as string }),
+      };
+
+      await saveAnswersSequentially(saveAnswers, created.sessionId, context, [
+        { stepKey: "ageRange", questionKey: "ageRange", value: "30-39" },
+        { stepKey: "gender", questionKey: "gender", value: "female" },
+        { stepKey: "goal", questionKey: "goal", value: "Lose weight" },
+        { stepKey: "activityLevel", questionKey: "activityLevel", value: "moderate" },
+      ]);
+
+      const invalidResponse = await saveAnswers(
+        jsonRequest(
+          `http://test.local/api/sessions/${created.sessionId}/answers`,
+          {
+            currentStep: 5,
+            answers: [
+              {
+                stepKey: "heightCm",
+                questionKey: "heightCm",
+                value: "165; DROP TABLE AssessmentAnswer",
+              },
+            ],
+          },
+          "PATCH",
+        ),
+        context,
+      );
+      const invalid = await invalidResponse.json();
+
+      expect(invalidResponse.status).toBe(422);
+      expect(invalid.error.message).toContain("heightCm");
+    },
+    60_000,
+  );
+
+  it(
+    "rejects completion when the target weight is unreasonable after valid step saves",
+    async () => {
+      const { POST: createSession } = await import(
+        "../src/app/api/sessions/route"
+      );
+      const { PATCH: saveAnswers } = await import(
+        "../src/app/api/sessions/[sessionId]/answers/route"
+      );
+      const { POST: completeAssessment } = await import(
+        "../src/app/api/sessions/[sessionId]/complete/route"
+      );
+
+      const createdResponse = await createSession(
+        jsonRequest("http://test.local/api/sessions", { flowId: "2117" }),
+      );
+      const created = await createdResponse.json();
+      const context = {
+        params: Promise.resolve({ sessionId: created.sessionId as string }),
+      };
+      const unreasonableTargetAnswers = healthAnswers.map((answer) =>
+        answer.questionKey === "targetWeightKg"
+          ? {
+              ...answer,
+              value: 40,
+            }
+          : answer,
+      );
+
+      await saveAnswersSequentially(
+        saveAnswers,
+        created.sessionId,
+        context,
+        unreasonableTargetAnswers,
+      );
+
+      const completedResponse = await completeAssessment(
+        new Request(
+          `http://test.local/api/sessions/${created.sessionId}/complete`,
+          { method: "POST" },
+        ),
+        context,
+      );
+      const completed = await completedResponse.json();
+
+      expect(completedResponse.status).toBe(422);
+      expect(completed.error.message).toContain("Target weight is too far");
     },
     60_000,
   );

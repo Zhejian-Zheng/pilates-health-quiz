@@ -123,6 +123,21 @@ describe("assessHealth", () => {
   });
 
   it.each([
+    ["age", { age: undefined }],
+    ["height", { heightCm: undefined }],
+    ["current weight", { currentWeightKg: undefined }],
+    ["target weight", { targetWeightKg: undefined }],
+    ["activity level", { activityLevel: undefined }],
+  ])("rejects missing %s input", (_label, override) => {
+    expect(() =>
+      assessHealth({
+        ...baseProfile,
+        ...override,
+      } as unknown as HealthProfileInput),
+    ).toThrow(HealthAssessmentError);
+  });
+
+  it.each([
     ["NaN height", { heightCm: Number.NaN }],
     ["infinite current weight", { currentWeightKg: Number.POSITIVE_INFINITY }],
     ["infinite target weight", { targetWeightKg: Number.NEGATIVE_INFINITY }],
