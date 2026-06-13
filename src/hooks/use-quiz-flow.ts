@@ -598,7 +598,6 @@ export function useQuizFlow() {
     setAnswers({});
     setNumberDrafts({});
     setResult(null);
-    setSubscriptionStatus("INACTIVE");
     setSyncStatus("idle");
     setPendingSaveCount(0);
     setError(null);
