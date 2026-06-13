@@ -1,5 +1,7 @@
 # 普拉提健康测评 (Pilates Health Quiz)
 
+[![CI](https://github.com/Zhejian-Zheng/pilates-health-quiz/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Zhejian-Zheng/pilates-health-quiz/actions/workflows/ci.yml)
+
 一个 Next.js 全栈健康测评转化链路项目，包含账号登录、游客测评、分步答案持久化、进度恢复、服务端健康结果计算、订阅状态控制和模拟支付解锁。
 
 项目当前更偏工程原型：重点是数据流、API 边界校验、账号/session 绑定、支付幂等和自动化测试。
