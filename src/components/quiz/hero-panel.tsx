@@ -1,7 +1,9 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 
+import pilatesLogo from "@/components/assets/pilates.png";
 import { isVipMember } from "@/lib/membership";
 import { copy } from "@/lib/quiz-content";
 import type { AuthProfile, Language } from "@/lib/quiz-types";
@@ -58,8 +60,15 @@ export function HeroPanel({
       <div className="flex items-center justify-between gap-4">
         <div className="flex min-w-0 items-center gap-4">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#0f766e] text-sm font-semibold text-white shadow-sm shadow-[#0f766e]/20">
-              P
+            <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full bg-white shadow-sm shadow-[#0f766e]/20 ring-1 ring-[#0f766e]/12">
+              <Image
+                alt=""
+                className="object-cover"
+                fill
+                priority
+                sizes="40px"
+                src={pilatesLogo}
+              />
             </div>
             <div className="min-w-0">
               <p className="truncate text-sm font-semibold text-[#12312c] sm:text-base">
