@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   AUTH_STORAGE_KEY,
@@ -50,6 +50,7 @@ export function useQuizFlow() {
   const [syncStatus, setSyncStatus] = useState<SyncStatus>("idle");
   const [pendingSaveCount, setPendingSaveCount] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const sessionIdRef = useRef<string | null>(null);
   const sessionPromiseRef = useRef<Promise<string> | null>(null);
   const pendingSavesRef = useRef<Promise<boolean>[]>([]);
   const pendingSaveCountRef = useRef(0);
@@ -66,6 +67,23 @@ export function useQuizFlow() {
     : Math.round((answeredQuestionCount / questions.length) * 100);
   const remainingQuestionCount = questions.length - answeredQuestionCount;
   const reachableStep = getReachableStep(answers, currentStep);
+
+  const setActiveSessionId = useCallback((nextSessionId: string | null) => {
+    sessionIdRef.current = nextSessionId;
+    setSessionId(nextSessionId);
+  }, []);
+
+  const applyProgress = useCallback((progress: SessionProgress) => {
+    const restoredAnswers = Object.fromEntries(
+      progress.answers.map((answer) => [answer.questionKey, answer.value]),
+    ) as Record<string, AnswerValue>;
+    const restoredStep = Math.min(progress.currentStep, questions.length);
+
+    setActiveSessionId(progress.sessionId);
+    setAnswers(restoredAnswers);
+    highestPersistedStepRef.current = restoredStep;
+    setCurrentStep(restoredStep);
+  }, [setActiveSessionId]);
 
   useEffect(() => {
     async function restoreProgress() {
@@ -108,7 +126,7 @@ export function useQuizFlow() {
     }
 
     restoreProgress();
-  }, []);
+  }, [applyProgress]);
 
   function changeLanguage(nextLanguage: Language) {
     setLanguage(nextLanguage);
@@ -149,7 +167,7 @@ export function useQuizFlow() {
       });
 
       if (!response.ok) {
-        throw new Error(String(t.authInvalid));
+        throw new Error(getAuthErrorMessage(response.status, mode));
       }
 
       const auth = (await response.json()) as AuthResponse;
@@ -157,6 +175,9 @@ export function useQuizFlow() {
       setAuthProfile(auth.profile);
       setResult(null);
       applyProgress(auth.progress);
+      if (auth.progress.status === "COMPLETED") {
+        await fetchResult();
+      }
     } catch (authError) {
       setError(authError instanceof Error ? authError.message : String(t.authInvalid));
     }
@@ -175,7 +196,7 @@ export function useQuizFlow() {
     });
     returnHome();
     sessionPromiseRef.current = null;
-    setSessionId(null);
+    setActiveSessionId(null);
     setAnswers({});
     setNumberDrafts({});
     setResult(null);
@@ -184,8 +205,8 @@ export function useQuizFlow() {
   }
 
   async function ensureSession() {
-    if (sessionId) {
-      return sessionId;
+    if (sessionIdRef.current) {
+      return sessionIdRef.current;
     }
 
     if (sessionPromiseRef.current) {
@@ -207,7 +228,11 @@ export function useQuizFlow() {
       }
 
       const progress = (await response.json()) as SessionProgress;
-      applyProgress(progress);
+      setActiveSessionId(progress.sessionId);
+      highestPersistedStepRef.current = Math.min(
+        Math.max(highestPersistedStepRef.current, progress.currentStep),
+        questions.length,
+      );
       return progress.sessionId;
     })().finally(() => {
       sessionPromiseRef.current = null;
@@ -508,7 +533,7 @@ export function useQuizFlow() {
     pendingSaveCountRef.current = 0;
     saveFailureRef.current = false;
     highestPersistedStepRef.current = 0;
-    setSessionId(null);
+    setActiveSessionId(null);
     setCurrentStep(0);
     setAnswers({});
     setNumberDrafts({});
@@ -518,16 +543,23 @@ export function useQuizFlow() {
     setError(null);
   }
 
-  function applyProgress(progress: SessionProgress) {
-    const restoredAnswers = Object.fromEntries(
-      progress.answers.map((answer) => [answer.questionKey, answer.value]),
-    ) as Record<string, AnswerValue>;
-    const restoredStep = Math.min(progress.currentStep, questions.length);
+  function getAuthErrorMessage(
+    status: number,
+    mode: Exclude<AuthMode, "guest">,
+  ) {
+    if (status === 409 && mode === "register") {
+      return String(t.authAccountExists);
+    }
 
-    setSessionId(progress.sessionId);
-    setAnswers(restoredAnswers);
-    highestPersistedStepRef.current = restoredStep;
-    setCurrentStep(restoredStep);
+    if (status === 401 && mode === "login") {
+      return String(t.authInvalidCredentials);
+    }
+
+    if (status === 400) {
+      return String(t.authInvalid);
+    }
+
+    return String(t.authServerError);
   }
 
   return {

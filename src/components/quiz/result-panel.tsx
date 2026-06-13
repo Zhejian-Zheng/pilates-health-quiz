@@ -12,12 +12,14 @@ export function ResultPanel({
   onStartOver,
   onUnlock,
   result,
+  unlockLabel,
 }: {
   isSaving: boolean;
   language: Language;
   onStartOver: () => void;
   onUnlock: () => void;
   result: ResultResponse;
+  unlockLabel?: string;
 }) {
   const t = copy[language];
   const isFull = result.access === "FULL";
@@ -190,7 +192,7 @@ export function ResultPanel({
             onClick={onUnlock}
             type="button"
           >
-            {isSaving ? String(t.unlocking) : String(t.unlock)}
+            {isSaving ? String(t.unlocking) : unlockLabel || String(t.unlock)}
           </button>
         ) : null}
       </div>

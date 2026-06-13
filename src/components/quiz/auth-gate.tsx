@@ -11,6 +11,7 @@ export function AuthGate({
   language,
   onContinueAsGuest,
   onSubmitAuth,
+  showGuestOption = true,
 }: {
   error: string | null;
   language: Language;
@@ -19,6 +20,7 @@ export function AuthGate({
     mode: AuthFormMode,
     credentials: { displayName?: string; email: string; password: string },
   ) => void | Promise<void>;
+  showGuestOption?: boolean;
 }) {
   const t = copy[language];
   const [mode, setMode] = useState<AuthFormMode>("login");
@@ -42,7 +44,13 @@ export function AuthGate({
         </h1>
       </div>
 
-      <div className="grid gap-5 md:grid-cols-[minmax(0,1fr)_220px]">
+      <div
+        className={
+          showGuestOption
+            ? "grid gap-5 md:grid-cols-[minmax(0,1fr)_220px]"
+            : "grid gap-5"
+        }
+      >
         <form className="grid gap-4" onSubmit={handleSubmit}>
           <div className="flex w-fit gap-1 rounded-full bg-[#dcefe9] p-1">
             {(["login", "register"] as const).map((item) => (
@@ -78,16 +86,21 @@ export function AuthGate({
               className="h-13 rounded-2xl border border-[#0f766e]/14 bg-white/78 px-4 text-base text-[#12312c] outline-none transition focus:border-[#0f766e] focus:ring-4 focus:ring-[#0f766e]/10"
               inputMode="email"
               onChange={(event) => setEmail(event.target.value)}
+              required
               type="email"
               value={email}
             />
           </label>
 
           <label className="grid gap-2 text-sm font-semibold text-[#52746d]">
-            {String(t.authPassword)}
+            {mode === "register"
+              ? String(t.authPasswordRequirement)
+              : String(t.authPassword)}
             <input
               className="h-13 rounded-2xl border border-[#0f766e]/14 bg-white/78 px-4 text-base text-[#12312c] outline-none transition focus:border-[#0f766e] focus:ring-4 focus:ring-[#0f766e]/10"
+              minLength={6}
               onChange={(event) => setPassword(event.target.value)}
+              required
               type="password"
               value={password}
             />
@@ -109,18 +122,20 @@ export function AuthGate({
           </button>
         </form>
 
-        <div className="border-t border-[#0f766e]/12 pt-5 md:border-l md:border-t-0 md:pl-5 md:pt-0">
-          <button
-            className="h-13 w-full rounded-2xl border border-[#0f766e]/18 bg-white/72 px-5 text-sm font-semibold text-[#115e59] transition hover:-translate-y-0.5 hover:bg-white hover:shadow-lg hover:shadow-[#0f766e]/8"
-            onClick={onContinueAsGuest}
-            type="button"
-          >
-            {String(t.authGuest)}
-          </button>
-          <p className="mt-3 text-sm leading-6 text-[#52746d]">
-            {String(t.authGuestNote)}
-          </p>
-        </div>
+        {showGuestOption ? (
+          <div className="border-t border-[#0f766e]/12 pt-5 md:border-l md:border-t-0 md:pl-5 md:pt-0">
+            <button
+              className="h-13 w-full rounded-2xl border border-[#0f766e]/18 bg-white/72 px-5 text-sm font-semibold text-[#115e59] transition hover:-translate-y-0.5 hover:bg-white hover:shadow-lg hover:shadow-[#0f766e]/8"
+              onClick={onContinueAsGuest}
+              type="button"
+            >
+              {String(t.authGuest)}
+            </button>
+            <p className="mt-3 text-sm leading-6 text-[#52746d]">
+              {String(t.authGuestNote)}
+            </p>
+          </div>
+        ) : null}
       </div>
     </section>
   );

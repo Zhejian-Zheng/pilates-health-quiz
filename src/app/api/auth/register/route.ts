@@ -6,7 +6,7 @@ import { setAccountCookie } from "@/lib/account-cookie";
 import { hashPassword } from "@/lib/password";
 import { prisma } from "@/lib/prisma";
 import { authSchema } from "@/lib/schemas";
-import { setSessionCookie } from "@/lib/session-cookie";
+import { readSessionCookie, setSessionCookie } from "@/lib/session-cookie";
 import {
   errorResponse,
   getLatestSessionProgress,
@@ -20,7 +20,7 @@ export async function POST(request: Request) {
     const credentials = authSchema.parse(await request.json().catch(() => ({})));
     const fallbackName = credentials.email.split("@")[0];
     const displayName = credentials.displayName || fallbackName;
-    const sessionId = nanoid();
+    const currentSessionId = readSessionCookie(request);
     const passwordHash = await hashPassword(credentials.password);
 
     const existingUser = await prisma.user.findUnique({
@@ -32,29 +32,71 @@ export async function POST(request: Request) {
       return errorResponse("Account already exists", 409);
     }
 
-    const user = await prisma.user.create({
-      data: {
-        sessionId,
-        email: credentials.email,
-        displayName,
-        passwordHash,
-        subscription: {
-          create: {
-            status: "INACTIVE",
+    const guestUser = currentSessionId
+      ? await prisma.user.findUnique({
+          where: { sessionId: currentSessionId },
+          select: {
+            id: true,
+            sessionId: true,
+            email: true,
           },
-        },
-        assessments: {
-          create: {
-            flowId: "2117",
-          },
-        },
-      },
-      select: {
-        id: true,
-      },
-    });
+        })
+      : null;
 
-    const progressUser = await getLatestSessionProgress(sessionId);
+    if (guestUser?.email) {
+      return errorResponse("Current session already belongs to an account", 409);
+    }
+
+    const user = guestUser
+      ? await prisma.user.update({
+          where: { id: guestUser.id },
+          data: {
+            email: credentials.email,
+            displayName,
+            passwordHash,
+          },
+          select: {
+            id: true,
+            sessionId: true,
+          },
+        })
+      : await prisma.user.create({
+          data: {
+            sessionId: nanoid(),
+            email: credentials.email,
+            displayName,
+            passwordHash,
+            subscription: {
+              create: {
+                status: "INACTIVE",
+              },
+            },
+            assessments: {
+              create: {
+                flowId: "2117",
+              },
+            },
+          },
+          select: {
+            id: true,
+            sessionId: true,
+          },
+        });
+
+    if (guestUser) {
+      await prisma.subscription.upsert({
+        where: {
+          userId: user.id,
+        },
+        create: {
+          userId: user.id,
+          status: "INACTIVE",
+        },
+        update: {},
+      });
+    }
+
+    const progressUser = await getLatestSessionProgress(user.sessionId);
     const progress = progressUser ? toSessionProgress(progressUser) : null;
 
     if (!progress) {
@@ -73,7 +115,7 @@ export async function POST(request: Request) {
       { status: 201 },
     );
     setAccountCookie(response, user.id);
-    setSessionCookie(response, sessionId);
+    setSessionCookie(response, user.sessionId);
 
     return response;
   } catch (error) {

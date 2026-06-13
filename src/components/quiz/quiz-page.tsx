@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 import { AuthGate } from "@/components/quiz/auth-gate";
 import { HeroPanel } from "@/components/quiz/hero-panel";
 import { ProgressRing } from "@/components/quiz/progress-ring";
@@ -13,6 +15,9 @@ import { copy, questions } from "@/lib/quiz-content";
 export function QuizPage() {
   const { actions, state } = useQuizFlow();
   const t = copy[state.language];
+  const [isAuthDialogOpen, setIsAuthDialogOpen] = useState(false);
+  const isGuest = state.authProfile?.mode === "guest";
+  const shouldShowAuthDialog = isAuthDialogOpen && isGuest;
 
   if (state.isLoading) {
     return (
@@ -34,7 +39,7 @@ export function QuizPage() {
             authProfile={state.authProfile}
             language={state.language}
             onLanguageChange={actions.changeLanguage}
-            onLoginRequest={actions.returnHome}
+            onLoginRequest={() => setIsAuthDialogOpen(true)}
             onLogout={actions.logout}
             onReturnHome={actions.returnHome}
             onUpgradeMembership={actions.upgradeMembership}
@@ -94,8 +99,15 @@ export function QuizPage() {
                       isSaving={state.isSaving}
                       language={state.language}
                       onStartOver={actions.startOver}
-                      onUnlock={actions.unlockResult}
+                      onUnlock={
+                        isGuest
+                          ? () => setIsAuthDialogOpen(true)
+                          : actions.unlockResult
+                      }
                       result={state.result}
+                      unlockLabel={
+                        isGuest ? String(t.loginToContinue) : undefined
+                      }
                     />
                   ) : state.currentQuestion ? (
                     <QuestionPanel
@@ -146,6 +158,32 @@ export function QuizPage() {
           )}
         </div>
       </div>
+
+      {shouldShowAuthDialog ? (
+        <div
+          aria-modal="true"
+          className="fixed inset-0 z-50 grid place-items-center overflow-y-auto bg-[#12312c]/42 px-4 py-6 backdrop-blur-sm"
+          role="dialog"
+        >
+          <div className="relative w-full max-w-3xl rounded-3xl bg-[#f5fbf8] px-5 py-5 shadow-2xl shadow-[#12312c]/18 sm:px-7">
+            <button
+              aria-label={state.language === "zh" ? "关闭" : "Close"}
+              className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full border border-[#0f766e]/14 bg-white/80 text-lg font-semibold text-[#52746d] transition hover:bg-white hover:text-[#12312c]"
+              onClick={() => setIsAuthDialogOpen(false)}
+              type="button"
+            >
+              ×
+            </button>
+            <AuthGate
+              error={state.error}
+              language={state.language}
+              onContinueAsGuest={() => setIsAuthDialogOpen(false)}
+              onSubmitAuth={actions.submitAuth}
+              showGuestOption={false}
+            />
+          </div>
+        </div>
+      ) : null}
     </main>
   );
 }
