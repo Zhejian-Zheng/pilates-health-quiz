@@ -2,6 +2,7 @@ import { nanoid } from "nanoid";
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 
+import { Prisma } from "@/generated/prisma/client";
 import { setAccountCookie } from "@/lib/account-cookie";
 import { hashPassword } from "@/lib/password";
 import { prisma } from "@/lib/prisma";
@@ -123,7 +124,20 @@ export async function POST(request: Request) {
       return errorResponse("Invalid auth payload", 400, error.flatten());
     }
 
+    if (isEmailUniqueConstraintError(error)) {
+      return errorResponse("Account already exists", 409);
+    }
+
     console.error("Failed to register account", error);
     return errorResponse("Failed to register account", 500);
   }
+}
+
+function isEmailUniqueConstraintError(error: unknown) {
+  return (
+    error instanceof Prisma.PrismaClientKnownRequestError &&
+    error.code === "P2002" &&
+    Array.isArray(error.meta?.target) &&
+    error.meta.target.includes("email")
+  );
 }
