@@ -71,7 +71,7 @@ PAY_WEBHOOK_SECRET="replace-with-a-shared-webhook-secret"
 
 - `DATABASE_URL`：服务端 PostgreSQL 连接字符串，不能暴露到前端。
 - `AUTH_COOKIE_SECRET`：用于签名账号登录 cookie。生产环境必须使用足够长的随机字符串。
-- `PAY_WEBHOOK_SECRET`：用于验证 `/api/pay` 的 Webhook 签名。纯本地模拟支付可以省略，生产环境建议配置。
+- `PAY_WEBHOOK_SECRET`：用于验证 `/pay` 的 Webhook 签名。纯本地模拟支付可以省略，生产环境建议配置。
 
 ## 用户流程
 
@@ -167,6 +167,31 @@ API 会拒绝：
 - 超出合理范围的数值
 - 已完成测评后的答案更新
 
+### 非法数值注入与越界输入防护
+
+答案保存接口 `PATCH /api/sessions/{sessionId}/answers` 会先经过 Zod schema 和业务值校验，再写入数据库。
+
+防护点：
+
+- `value` 必须是合法 JSON 值，拒绝 `NaN`、`Infinity` 等非有限数字。
+- 身高 `heightCm` 必须是数字，并限制在 `100-250`。
+- 当前体重 `currentWeightKg` 和目标体重 `targetWeightKg` 必须是数字，并限制在 `30-300`。
+- 年龄 `age` 必须是整数，并限制在 `13-100`。
+- 数字字段拒绝字符串注入，例如 `"165; DROP TABLE"`。
+- 数字字段拒绝对象或数组注入，例如 `{ "kg": 80 }`、`[70]`。
+- 枚举字段只接受白名单值。
+
+相关实现：
+
+- `src/lib/schemas.ts`：`saveAnswersSchema`、`validateAnswerValues`、`assertNumberInRange`、`assertIntegerInRange`
+- `src/app/api/sessions/[sessionId]/answers/route.ts`：在持久化前调用校验，失败返回 `400` 或 `422`
+
+相关测试覆盖：
+
+- `tests/schemas.test.ts`：覆盖越界值、非数字注入、`NaN` 等 schema/业务校验
+- `tests/api-flow.test.ts`：覆盖接口边界上的越界保存和数字注入请求
+- `tests/health-assessment.test.ts`：覆盖服务端健康计算阶段的非有限数字和不合理健康数据
+
 恢复当前浏览器 session：
 
 ```bash
@@ -199,7 +224,7 @@ curl http://localhost:3000/api/results/{sessionId}
 
 ## 订阅与模拟支付
 
-本项目有一个模拟支付接口 `/api/pay`，不会收取真实费用。
+本项目有一个模拟支付接口 `/pay`，不会收取真实费用。旧路径 `/api/pay` 仍保留兼容。
 
 未付费时，结果接口返回：
 
@@ -241,10 +266,10 @@ curl http://localhost:3000/api/results/{sessionId}
 }
 ```
 
-模拟支付：
+模拟支付回调：
 
 ```bash
-curl -X POST http://localhost:3000/api/pay \
+curl -X POST http://localhost:3000/pay \
   -H "Content-Type: application/json" \
   -d '{
     "sessionId": "{sessionId}",
@@ -262,12 +287,12 @@ curl -X POST http://localhost:3000/api/pay \
 - 同一个结果接口返回 `access: "FULL"`
 - 完整结果包含推荐热量、目标日期、详细建议和预测曲线
 
-生产环境中，`/api/pay` 应替换为真实支付服务商 webhook，例如 Stripe 或 Paddle。真实 webhook 必须校验签名、金额、货币和事件 ID，并保证幂等。
+生产环境中，`/pay` 应替换为真实支付服务商 webhook，例如 Stripe 或 Paddle。真实 webhook 必须校验签名、金额、货币和事件 ID，并保证幂等。
 
 带签名的支付请求示例：
 
 ```bash
-curl -X POST http://localhost:3000/api/pay \
+curl -X POST http://localhost:3000/pay \
   -H "Content-Type: application/json" \
   -H "x-pay-signature: SIGNATURE_HEX" \
   -d '{"sessionId":"{sessionId}","providerEventId":"evt_123","payload":{"mock":true}}'

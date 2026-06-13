@@ -460,7 +460,7 @@ export function useQuizFlow() {
     setError(null);
 
     try {
-      const response = await fetch("/api/pay", {
+      const response = await fetch("/pay", {
         method: "POST",
         credentials: "same-origin",
         headers: {
@@ -496,7 +496,7 @@ export function useQuizFlow() {
         await ensureSession();
       }
 
-      const response = await fetch("/api/pay", {
+      const response = await fetch("/pay", {
         method: "POST",
         credentials: "same-origin",
         headers: {
