@@ -1,6 +1,12 @@
 # 普拉提健康测评 (Pilates Health Quiz)
 
 [![CI](https://github.com/Zhejian-Zheng/pilates-health-quiz/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Zhejian-Zheng/pilates-health-quiz/actions/workflows/ci.yml)
+![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)
+![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)
+![Prisma](https://img.shields.io/badge/Prisma-7-2D3748?logo=prisma)
+![Tests](https://img.shields.io/badge/tests-Vitest-6E9F18?logo=vitest&logoColor=white)
+[![Vercel](https://img.shields.io/badge/deployed%20on-Vercel-black?logo=vercel)](https://pilates-health-quiz-f4kpp6lnj-zhejians-projects.vercel.app/)
 
 一个 Next.js 全栈健康测评转化链路项目，包含账号登录、游客测评、分步答案持久化、进度恢复、服务端健康结果计算、订阅状态控制和模拟支付解锁。
 
