@@ -43,6 +43,7 @@ export function QuizPage() {
             onLogout={actions.logout}
             onReturnHome={actions.returnHome}
             onUpgradeMembership={actions.upgradeMembership}
+            subscriptionStatus={state.subscriptionStatus}
           />
 
           {!state.authProfile ? (

@@ -24,6 +24,10 @@ type AuthResponse = {
   progress: SessionProgress;
 };
 
+type PayResponse = {
+  subscriptionStatus: string;
+};
+
 export function useQuizFlow() {
   const [language, setLanguage] = useState<Language>(() => {
     if (typeof window === "undefined") {
@@ -45,6 +49,7 @@ export function useQuizFlow() {
   const [answers, setAnswers] = useState<Record<string, AnswerValue>>({});
   const [numberDrafts, setNumberDrafts] = useState<Record<string, string>>({});
   const [result, setResult] = useState<ResultResponse | null>(null);
+  const [subscriptionStatus, setSubscriptionStatus] = useState("INACTIVE");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>("idle");
@@ -80,6 +85,7 @@ export function useQuizFlow() {
     const restoredStep = Math.min(progress.currentStep, questions.length);
 
     setActiveSessionId(progress.sessionId);
+    setSubscriptionStatus(progress.subscriptionStatus);
     setAnswers(restoredAnswers);
     highestPersistedStepRef.current = restoredStep;
     setCurrentStep(restoredStep);
@@ -137,6 +143,7 @@ export function useQuizFlow() {
     const guestProfile = getGuestProfile();
     localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(guestProfile));
     setAuthProfile(guestProfile);
+    setSubscriptionStatus("INACTIVE");
     setError(null);
   }
 
@@ -190,6 +197,7 @@ export function useQuizFlow() {
   function returnHome() {
     localStorage.removeItem(AUTH_STORAGE_KEY);
     setAuthProfile(null);
+    setSubscriptionStatus("INACTIVE");
     setError(null);
   }
 
@@ -233,6 +241,7 @@ export function useQuizFlow() {
 
       const progress = (await response.json()) as SessionProgress;
       setActiveSessionId(progress.sessionId);
+      setSubscriptionStatus(progress.subscriptionStatus);
       highestPersistedStepRef.current = Math.min(
         Math.max(highestPersistedStepRef.current, progress.currentStep),
         questions.length,
@@ -451,7 +460,9 @@ export function useQuizFlow() {
       throw new Error(String(t.resultError));
     }
 
-    setResult((await response.json()) as ResultResponse);
+    const nextResult = (await response.json()) as ResultResponse;
+    setResult(nextResult);
+    setSubscriptionStatus(nextResult.subscriptionStatus);
     setCurrentStep(questions.length);
   }
 
@@ -477,6 +488,8 @@ export function useQuizFlow() {
         throw new Error(String(t.paymentError));
       }
 
+      const payment = (await response.json()) as PayResponse;
+      setSubscriptionStatus(payment.subscriptionStatus);
       await fetchResult();
     } catch (paymentError) {
       setError(
@@ -513,6 +526,8 @@ export function useQuizFlow() {
         throw new Error(String(t.paymentError));
       }
 
+      const payment = (await response.json()) as PayResponse;
+      setSubscriptionStatus(payment.subscriptionStatus);
       if (result) {
         await fetchResult();
       } else {
@@ -542,6 +557,7 @@ export function useQuizFlow() {
     setAnswers({});
     setNumberDrafts({});
     setResult(null);
+    setSubscriptionStatus("INACTIVE");
     setSyncStatus("idle");
     setPendingSaveCount(0);
     setError(null);
@@ -600,6 +616,7 @@ export function useQuizFlow() {
       remainingQuestionCount,
       result,
       sessionId,
+      subscriptionStatus,
       syncStatus,
       visualProgress,
     },

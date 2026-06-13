@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 
+import { isVipMember } from "@/lib/membership";
 import { copy } from "@/lib/quiz-content";
 import type { AuthProfile, Language } from "@/lib/quiz-types";
 
@@ -13,6 +14,7 @@ export function HeroPanel({
   onLogout,
   onReturnHome,
   onUpgradeMembership,
+  subscriptionStatus,
 }: {
   authProfile?: AuthProfile | null;
   language: Language;
@@ -21,10 +23,12 @@ export function HeroPanel({
   onLogout?: () => void;
   onReturnHome?: () => void;
   onUpgradeMembership?: () => void;
+  subscriptionStatus?: string;
 }) {
   const t = copy[language];
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const settingsRef = useRef<HTMLDivElement>(null);
+  const isVip = isVipMember(authProfile, subscriptionStatus);
   const displayName =
     authProfile?.mode === "guest"
       ? String(t.accountGuest)
@@ -79,6 +83,11 @@ export function HeroPanel({
               >
                 <span className="h-2 w-2 shrink-0 rounded-full bg-[#0f766e]" />
                 <span className="truncate">{displayName}</span>
+                {isVip ? (
+                  <span className="shrink-0 rounded-full bg-[#f8d86a] px-2 py-0.5 text-[10px] font-black leading-none text-[#4b3410] shadow-sm shadow-[#d6a500]/20">
+                    VIP
+                  </span>
+                ) : null}
                 <span className="text-[#52746d]">{String(t.settings)}</span>
               </button>
 
