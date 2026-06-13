@@ -310,6 +310,41 @@ curl -X POST http://localhost:3000/pay \
   }'
 ```
 
+可重放调用方式：
+
+```bash
+# 第一次调用：创建 PaymentEvent，并把订阅状态更新为 ACTIVE
+curl -X POST http://localhost:3000/pay \
+  -H "Content-Type: application/json" \
+  -d '{
+    "sessionId": "{sessionId}",
+    "providerEventId": "evt_replay_demo_001",
+    "payload": {
+      "source": "readme-replay-demo"
+    }
+  }'
+
+# 第二次调用：使用完全相同的 providerEventId，不会重复创建支付事件
+curl -X POST http://localhost:3000/pay \
+  -H "Content-Type: application/json" \
+  -d '{
+    "sessionId": "{sessionId}",
+    "providerEventId": "evt_replay_demo_001",
+    "payload": {
+      "source": "readme-replay-demo"
+    }
+  }'
+```
+
+第二次响应会返回：
+
+```json
+{
+  "idempotentReplay": true,
+  "subscriptionStatus": "ACTIVE"
+}
+```
+
 支付成功后：
 
 - 写入 `PaymentEvent`
