@@ -7,61 +7,259 @@ datasource db {
   provider = "postgresql"
 }
 
-model User {
-  id           String   @id @default(cuid())
-  sessionId    String   @unique
-  email        String?  @unique
-  displayName  String?
-  passwordHash String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+enum UserRole {
+  CUSTOMER
+  COACH
+  ADMIN
+  SUPPORT
+}
 
-  assessments  AssessmentSession[]
-  subscription Subscription?
+enum OrganizationRole {
+  OWNER
+  ADMIN
+  COACH
+  SUPPORT
+  MEMBER
+}
+
+enum AssessmentStatus {
+  IN_PROGRESS
+  COMPLETED
+  ABANDONED
+}
+
+enum SubscriptionStatus {
+  INACTIVE
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  EXPIRED
+}
+
+enum PlanStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+enum ContentStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+enum PaymentEventStatus {
+  RECEIVED
+  PROCESSED
+  FAILED
+  IGNORED
+}
+
+enum LeadStage {
+  NEW
+  QUALIFIED
+  TRIAL
+  CUSTOMER
+  CHURNED
+}
+
+enum CommunicationChannel {
+  EMAIL
+  SMS
+  PHONE
+  WHATSAPP
+  WECHAT
+  IN_APP
+}
+
+enum CommunicationDirection {
+  INBOUND
+  OUTBOUND
+}
+
+enum CommunicationStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  FAILED
+  OPENED
+  CLICKED
+}
+
+enum ConsentType {
+  TERMS
+  PRIVACY
+  HEALTH_DATA
+  MARKETING
+}
+
+model User {
+  id              String    @id @default(cuid())
+  sessionId       String    @unique
+  email           String?   @unique
+  displayName     String?
+  passwordHash    String?
+  role            UserRole  @default(CUSTOMER)
+  phone           String?
+  emailVerifiedAt DateTime?
+  lastLoginAt     DateTime?
+  disabledAt      DateTime?
+  deletedAt       DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  assessments       AssessmentSession[]
+  auditLogs         AuditLog[]               @relation("ActorAuditLogs")
+  authSessions      AuthSession[]
+  communicationLogs CommunicationEvent[]
+  consentRecords    ConsentRecord[]
+  crmNotes          CrmNote[]                @relation("CrmNoteAuthor")
+  crmLeads          CrmLead[]                @relation("LeadUser")
+  ownedLeads        CrmLead[]                @relation("LeadOwner")
+  organizationRoles OrganizationMembership[]
+  paymentEvents     PaymentEvent[]
+  profile           UserProfile?
+  subscription      Subscription?
+
+  @@index([role])
+  @@index([deletedAt])
+}
+
+model Organization {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  name      String
+  timezone  String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  auditLogs   AuditLog[]
+  crmLeads    CrmLead[]
+  memberships OrganizationMembership[]
+}
+
+model OrganizationMembership {
+  id             String           @id @default(cuid())
+  organizationId String
+  userId         String
+  role           OrganizationRole @default(MEMBER)
+  isActive       Boolean          @default(true)
+  invitedAt      DateTime?
+  acceptedAt     DateTime?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  user         User         @relation(fields: [userId], references: [id])
+
+  @@unique([organizationId, userId])
+  @@index([userId])
+  @@index([role])
+}
+
+model UserProfile {
+  id               String    @id @default(cuid())
+  userId           String    @unique
+  dateOfBirth      DateTime?
+  sexAtBirth       String?
+  genderIdentity   String?
+  country          String?
+  timezone         String?
+  locale           String?
+  marketingOptIn   Boolean   @default(false)
+  emergencyContact Json?
+  medicalNotes     Json?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model AuthSession {
+  id               String    @id @default(cuid())
+  userId           String
+  sessionTokenHash String    @unique
+  ipAddress        String?
+  userAgent        String?
+  expiresAt        DateTime
+  revokedAt        DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 model AssessmentSession {
-  id          String    @id @default(cuid())
-  userId      String
-  status      String    @default("IN_PROGRESS")
-  currentStep Int       @default(0)
-  flowId      String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  completedAt DateTime?
+  id               String           @id @default(cuid())
+  userId           String
+  status           AssessmentStatus @default(IN_PROGRESS)
+  currentStep      Int              @default(0)
+  flowId           String?
+  flowDefinitionId String?
+  source           String?
+  ipAddress        String?
+  userAgent        String?
+  metadata         Json?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  completedAt      DateTime?
+  abandonedAt      DateTime?
+  expiresAt        DateTime?
 
-  user    User               @relation(fields: [userId], references: [id])
-  answers AssessmentAnswer[]
-  profile HealthProfile?
-  result  AssessmentResult?
+  user           User               @relation(fields: [userId], references: [id])
+  flowDefinition AssessmentFlow?    @relation(fields: [flowDefinitionId], references: [id])
+  answers        AssessmentAnswer[]
+  profile        HealthProfile?
+  result         AssessmentResult?
+
+  @@index([userId, createdAt])
+  @@index([status])
+  @@index([flowDefinitionId])
 }
 
 model AssessmentAnswer {
   id           String   @id @default(cuid())
   assessmentId String
+  questionId   String?
   stepKey      String
   questionKey  String
   value        Json
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  assessment AssessmentSession @relation(fields: [assessmentId], references: [id])
+  assessment AssessmentSession   @relation(fields: [assessmentId], references: [id])
+  question   AssessmentQuestion? @relation(fields: [questionId], references: [id])
 
   @@unique([assessmentId, questionKey])
+  @@index([questionId])
+  @@index([assessmentId, createdAt])
 }
 
 model HealthProfile {
-  id              String   @id @default(cuid())
-  assessmentId    String   @unique
-  gender          String
-  goal            String
-  age             Int
-  heightCm        Float
-  currentWeightKg Float
-  targetWeightKg  Float
-  activityLevel   String
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                 String   @id @default(cuid())
+  assessmentId       String   @unique
+  gender             String
+  goal               String
+  age                Int
+  heightCm           Float
+  currentWeightKg    Float
+  targetWeightKg     Float
+  activityLevel      String
+  sleepQuality       String?
+  sittingHours       String?
+  bodyConcern        String?
+  equipment          String?
+  pilatesExperience  String?
+  sessionTime        String?
+  stressLevel        String?
+  movementLimitation String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   assessment AssessmentSession @relation(fields: [assessmentId], references: [id])
 }
@@ -76,6 +274,8 @@ model AssessmentResult {
   summary                String
   detailedRecommendation Json
   projectionCurve        Json
+  riskFlags              Json?
+  algorithmVersion       String   @default("v1")
   createdAt              DateTime @default(now())
   updatedAt              DateTime @updatedAt
 
@@ -83,22 +283,229 @@ model AssessmentResult {
 }
 
 model Subscription {
-  id        String    @id @default(cuid())
-  userId    String    @unique
-  status    String    @default("INACTIVE")
-  startedAt DateTime?
-  expiresAt DateTime?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id                     String             @id @default(cuid())
+  userId                 String             @unique
+  planId                 String?
+  status                 SubscriptionStatus @default(INACTIVE)
+  provider               String             @default("MOCK")
+  providerCustomerId     String?
+  providerSubscriptionId String?
+  startedAt              DateTime?
+  trialEndsAt            DateTime?
+  expiresAt              DateTime?
+  cancelAt               DateTime?
+  canceledAt             DateTime?
+  metadata               Json?
+  createdAt              DateTime           @default(now())
+  updatedAt              DateTime           @updatedAt
 
-  user User @relation(fields: [userId], references: [id])
+  plan Plan? @relation(fields: [planId], references: [id])
+  user User  @relation(fields: [userId], references: [id])
+
+  @@index([planId])
+  @@index([status])
+  @@index([provider, providerCustomerId])
+  @@index([provider, providerSubscriptionId])
 }
 
 model PaymentEvent {
-  id              String   @id @default(cuid())
-  providerEventId String   @unique
+  id              String             @id @default(cuid())
+  providerEventId String             @unique
   sessionId       String
+  userId          String?
+  provider        String             @default("MOCK")
   eventType       String
+  status          PaymentEventStatus @default(PROCESSED)
+  amountCents     Int?
+  currency        String?
   payload         Json
-  createdAt       DateTime @default(now())
+  receivedAt      DateTime           @default(now())
+  processedAt     DateTime?
+  errorMessage    String?
+  createdAt       DateTime           @default(now())
+
+  user User? @relation(fields: [userId], references: [id])
+
+  @@index([sessionId])
+  @@index([userId])
+  @@index([status])
+  @@index([provider, eventType])
+}
+
+model Plan {
+  id              String     @id @default(cuid())
+  code            String     @unique
+  name            String
+  description     String?
+  status          PlanStatus @default(ACTIVE)
+  priceCents      Int
+  currency        String     @default("USD")
+  billingInterval String     @default("month")
+  trialDays       Int?
+  features        Json
+  metadata        Json?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  subscriptions Subscription[]
+}
+
+model AssessmentFlow {
+  id          String        @id @default(cuid())
+  slug        String
+  title       String
+  version     Int           @default(1)
+  status      ContentStatus @default(DRAFT)
+  metadata    Json?
+  publishedAt DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  questions   AssessmentQuestion[]
+  assessments AssessmentSession[]
+
+  @@unique([slug, version])
+}
+
+model AssessmentQuestion {
+  id         String   @id @default(cuid())
+  flowId     String
+  key        String
+  order      Int
+  type       String
+  label      Json
+  helper     Json?
+  required   Boolean  @default(true)
+  validation Json?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  flow    AssessmentFlow             @relation(fields: [flowId], references: [id])
+  answers AssessmentAnswer[]
+  options AssessmentQuestionOption[]
+
+  @@unique([flowId, key])
+  @@unique([flowId, order])
+}
+
+model AssessmentQuestionOption {
+  id         String   @id @default(cuid())
+  questionId String
+  value      String
+  label      Json
+  order      Int
+  metadata   Json?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  question AssessmentQuestion @relation(fields: [questionId], references: [id])
+
+  @@unique([questionId, value])
+  @@unique([questionId, order])
+}
+
+model CrmLead {
+  id              String    @id @default(cuid())
+  organizationId  String?
+  userId          String?
+  ownerId         String?
+  stage           LeadStage @default(NEW)
+  source          String?
+  score           Int?
+  tags            Json?
+  lastContactedAt DateTime?
+  nextFollowUpAt  DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  organization   Organization?        @relation(fields: [organizationId], references: [id])
+  user           User?                @relation("LeadUser", fields: [userId], references: [id])
+  owner          User?                @relation("LeadOwner", fields: [ownerId], references: [id])
+  notes          CrmNote[]
+  communications CommunicationEvent[]
+
+  @@index([organizationId])
+  @@index([userId])
+  @@index([ownerId])
+  @@index([stage])
+  @@index([nextFollowUpAt])
+}
+
+model CrmNote {
+  id        String   @id @default(cuid())
+  leadId    String
+  authorId  String?
+  body      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  lead   CrmLead @relation(fields: [leadId], references: [id])
+  author User?   @relation("CrmNoteAuthor", fields: [authorId], references: [id])
+
+  @@index([leadId])
+  @@index([authorId])
+}
+
+model CommunicationEvent {
+  id                String                 @id @default(cuid())
+  userId            String?
+  leadId            String?
+  channel           CommunicationChannel
+  direction         CommunicationDirection
+  status            CommunicationStatus    @default(QUEUED)
+  subject           String?
+  body              String?
+  providerMessageId String?
+  metadata          Json?
+  sentAt            DateTime?
+  createdAt         DateTime               @default(now())
+  updatedAt         DateTime               @updatedAt
+
+  user User?    @relation(fields: [userId], references: [id])
+  lead CrmLead? @relation(fields: [leadId], references: [id])
+
+  @@index([userId])
+  @@index([leadId])
+  @@index([channel, status])
+  @@index([providerMessageId])
+}
+
+model ConsentRecord {
+  id        String      @id @default(cuid())
+  userId    String
+  type      ConsentType
+  version   String
+  grantedAt DateTime    @default(now())
+  revokedAt DateTime?
+  metadata  Json?
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@unique([userId, type, version])
+  @@index([userId])
+  @@index([type])
+}
+
+model AuditLog {
+  id             String   @id @default(cuid())
+  organizationId String?
+  actorUserId    String?
+  entityType     String
+  entityId       String
+  action         String
+  before         Json?
+  after          Json?
+  ipAddress      String?
+  userAgent      String?
+  createdAt      DateTime @default(now())
+
+  organization Organization? @relation(fields: [organizationId], references: [id])
+  actor        User?         @relation("ActorAuditLogs", fields: [actorUserId], references: [id])
+
+  @@index([organizationId])
+  @@index([actorUserId])
+  @@index([entityType, entityId])
+  @@index([action])
+  @@index([createdAt])
 }

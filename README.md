@@ -320,87 +320,54 @@ APP_URL=https://your-deployed-app.vercel.app npm run demo:paid-session
 
 ## 数据库结构
 
+当前 Prisma schema 已升级为生产级 CRM/健康 SaaS 结构：既保留测评、账号、支付的核心闭环，也预留组织租户、员工权限、CRM 跟进、题库版本、同意记录和审计日志。
+
 ```mermaid
 erDiagram
-  User ||--o{ AssessmentSession : has
+  Organization ||--o{ OrganizationMembership : has
+  Organization ||--o{ CrmLead : owns
+  Organization ||--o{ AuditLog : scopes
+  User ||--o{ OrganizationMembership : joins
+  User ||--o{ AssessmentSession : takes
+  User ||--o| UserProfile : extends
+  User ||--o{ AuthSession : logs_in
   User ||--o| Subscription : owns
+  User ||--o{ ConsentRecord : grants
+  User ||--o{ PaymentEvent : pays
+  User ||--o{ CrmLead : becomes
+  User ||--o{ CrmLead : owns
+  AssessmentFlow ||--o{ AssessmentQuestion : defines
+  AssessmentQuestion ||--o{ AssessmentQuestionOption : offers
+  AssessmentQuestion ||--o{ AssessmentAnswer : receives
   AssessmentSession ||--o{ AssessmentAnswer : stores
   AssessmentSession ||--o| HealthProfile : extracts
   AssessmentSession ||--o| AssessmentResult : calculates
-
-  User {
-    string id
-    string sessionId
-    string email
-    string displayName
-    string passwordHash
-    datetime createdAt
-    datetime updatedAt
-  }
-
-  AssessmentSession {
-    string id
-    string userId
-    string status
-    int currentStep
-    string flowId
-    datetime completedAt
-  }
-
-  AssessmentAnswer {
-    string id
-    string assessmentId
-    string stepKey
-    string questionKey
-    json value
-  }
-
-  HealthProfile {
-    string id
-    string assessmentId
-    string gender
-    string goal
-    int age
-    float heightCm
-    float currentWeightKg
-    float targetWeightKg
-    string activityLevel
-  }
-
-  AssessmentResult {
-    string id
-    string assessmentId
-    float bmi
-    string bmiCategory
-    int recommendedCalories
-    datetime targetDate
-    json detailedRecommendation
-    json projectionCurve
-  }
-
-  Subscription {
-    string id
-    string userId
-    string status
-    datetime startedAt
-    datetime expiresAt
-  }
-
-  PaymentEvent {
-    string id
-    string providerEventId
-    string sessionId
-    string eventType
-    json payload
-  }
+  Plan ||--o{ Subscription : prices
+  CrmLead ||--o{ CrmNote : records
+  CrmLead ||--o{ CommunicationEvent : contacts
 ```
 
-关键约束：
+核心表分层：
 
-- `User.sessionId` 唯一，用于恢复当前测评 session。
-- `User.email` 唯一，用于账号登录。
-- `AssessmentAnswer` 对 `(assessmentId, questionKey)` 建立唯一约束，重复提交会更新原答案。
-- `PaymentEvent.providerEventId` 唯一，用于支付 webhook 幂等。
+- 账号与权限：`User`、`UserProfile`、`AuthSession`、`Organization`、`OrganizationMembership`
+- 测评内容与作答：`AssessmentFlow`、`AssessmentQuestion`、`AssessmentQuestionOption`、`AssessmentSession`、`AssessmentAnswer`
+- 健康结果：`HealthProfile`、`AssessmentResult`
+- 商业化：`Plan`、`Subscription`、`PaymentEvent`
+- CRM：`CrmLead`、`CrmNote`、`CommunicationEvent`
+- 合规与运维：`ConsentRecord`、`AuditLog`
+
+关键约束与设计取舍：
+
+- `User.email` 唯一，用于账号登录；`User.sessionId` 唯一，用于兼容当前游客 session 恢复。
+- `User.passwordHash` 只保存哈希，不保存明文密码。
+- `OrganizationMembership` 对 `(organizationId, userId)` 唯一，支持一个用户加入多个组织并拥有不同角色。
+- `AssessmentFlow` 使用 `slug + version` 唯一约束，题库可版本化发布，历史测评结果不会因为改题而失真。
+- `AssessmentAnswer` 对 `(assessmentId, questionKey)` 唯一，重复提交会更新原答案，不会产生脏重复行。
+- `Subscription.status` 使用枚举：`INACTIVE`、`TRIALING`、`ACTIVE`、`PAST_DUE`、`CANCELED`、`EXPIRED`。
+- `PaymentEvent.providerEventId` 唯一，用于支付 webhook 幂等，避免重复回调重复开通会员。
+- `CrmLead.stage`、`CommunicationEvent.status`、`ConsentRecord.type`、`AuditLog` 都有索引，方便后台筛选、跟进、合规追踪。
+- 健康和 CRM 中变化快、结构可能扩展的字段使用 `Json`，例如 `medicalNotes`、`riskFlags`、`features`、`metadata`，避免每次产品实验都迁移表结构。
+- 用户删除使用 `deletedAt` 软删除字段，审计、支付、测评历史仍可保留。
 
 ## 常用命令
 
