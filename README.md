@@ -1,62 +1,143 @@
-# Pilates Health Quiz
+# 普拉提健康测评 (Pilates Health Quiz)
 
-A full-stack health assessment funnel inspired by BetterMe Pilates. The project focuses on the backend foundation: step-by-step persistence, progress recovery, server-side health scoring, subscription-gated results, and automated tests.
+一个 Next.js 全栈健康测评转化链路项目，包含账号登录、游客测评、分步答案持久化、进度恢复、服务端健康结果计算、订阅状态控制和模拟支付解锁。
 
-## Tech Stack
+项目当前更偏工程原型：重点是数据流、API 边界校验、账号/session 绑定、支付幂等和自动化测试。
 
-- Next.js App Router
+## 技术栈
+
+- Next.js 16 App Router
+- React 19
 - TypeScript
 - Prisma 7
 - Supabase PostgreSQL
 - Zod
 - Vitest
+- Tailwind CSS
 
-## Getting Started
+## 本地快速开始
+
+建议使用 Node.js 20 或更高版本。
 
 ```bash
 npm install
 cp .env.example .env
-npx prisma migrate dev
+```
+
+编辑 `.env`，至少配置：
+
+```bash
+DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/postgres"
+AUTH_COOKIE_SECRET="replace-with-a-long-random-secret"
+PAY_WEBHOOK_SECRET="replace-with-a-shared-webhook-secret"
+```
+
+如果使用远程 Supabase 或已有数据库，执行：
+
+```bash
+npx prisma migrate deploy
 npx prisma generate
 npm run dev
 ```
 
-The app runs at `http://localhost:3000`.
+如果是本地开发数据库，也可以使用：
 
-## Submission Links
+```bash
+npx prisma migrate dev
+npm run dev
+```
 
-Fill these in after deployment:
+应用默认运行在：
 
-- Public demo URL: `TODO`
-- GitHub repository: `TODO`
-- Paid test sessionId: `TODO`
-- CI status: GitHub Actions workflow in `.github/workflows/ci.yml`
+```text
+http://localhost:3000
+```
 
-## User Flow
+国内网络如果 `npm install` 较慢，可以临时使用 npm 镜像：
 
-The home page is the working quiz funnel:
+```bash
+npm install --registry=https://registry.npmmirror.com
+```
 
-1. Select an age range to create an anonymous session.
-2. Answer gender, goal, activity level, height, current weight, target weight, and exact age.
-3. Optionally answer recovery and personalization questions such as sleep, sitting time, body focus, available equipment, Pilates experience, session length, stress level, and low-impact needs. Each optional question includes a "Not sure / skip" answer.
-4. Each step is saved to the backend immediately.
-5. Refreshing the browser restores progress from the saved `sessionId`.
-6. Completing the quiz calculates and stores the result on the server.
-7. The result is locked for non-members and unlocked after the simulated `/api/pay` callback.
-
-## Environment Variables
+## 环境变量
 
 ```bash
 DATABASE_URL="postgresql://USER:PASSWORD@HOST:5432/postgres"
+AUTH_COOKIE_SECRET="replace-with-a-long-random-secret"
 PAY_WEBHOOK_SECRET="replace-with-a-shared-webhook-secret"
 ```
 
-Use a server-side PostgreSQL connection string only. Do not expose this value in frontend code.
-`PAY_WEBHOOK_SECRET` is required in production for `/api/pay` signature verification. Local development can omit it for the simulated paywall button.
+说明：
 
-## API Flow
+- `DATABASE_URL`：服务端 PostgreSQL 连接字符串，不能暴露到前端。
+- `AUTH_COOKIE_SECRET`：用于签名账号登录 cookie。生产环境必须使用足够长的随机字符串。
+- `PAY_WEBHOOK_SECRET`：用于验证 `/api/pay` 的 Webhook 签名。纯本地模拟支付可以省略，生产环境建议配置。
 
-Create a session:
+## 用户流程
+
+应用首页就是测评入口。
+
+1. 用户可以注册、登录，或以游客模式继续。
+2. 游客/用户回答健康测评问题。
+3. 每一步答案都会保存到后端 session。
+4. 刷新浏览器时，后端会通过 httpOnly cookie 恢复当前 session。
+5. 完成测评后，服务端计算并保存健康结果。
+6. 非会员只能看到锁定预览，包括 BMI、分类和基础总结。
+7. 游客在结果页点击“登录后进行下一步”会弹出登录/注册弹窗。弹窗中不再显示“游客继续”。
+8. 游客注册后，当前游客 session 会升级绑定到新账号，不会丢失刚完成的测评结果。
+9. 登录/注册后仍然不会自动解锁完整计划，用户需要继续点击“解锁完整计划”触发模拟支付。
+10. 模拟支付成功后，订阅状态变为 `ACTIVE`，完整结果解锁。
+
+## 账号与认证
+
+账号功能由自定义 API 实现，没有使用 NextAuth。
+
+相关接口：
+
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `POST /api/auth/logout`
+
+认证实现：
+
+- `User.email` 唯一。
+- 密码不会明文保存，服务端使用 Node.js `crypto.scrypt` 加盐哈希，写入 `User.passwordHash`。
+- 登录成功后写入 httpOnly 的账号 cookie：`pilates_health_quiz_account`。
+- 测评进度使用独立 httpOnly session cookie：`pilates_health_quiz_session`。
+- 游客注册时，如果当前浏览器已有游客 session，会直接把这个游客 `User` 升级为账号用户。
+
+注册请求示例：
+
+```bash
+curl -X POST http://localhost:3000/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "displayName": "Kevin",
+    "email": "kevin@example.com",
+    "password": "123456"
+  }'
+```
+
+登录请求示例：
+
+```bash
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{
+    "email": "kevin@example.com",
+    "password": "123456"
+  }'
+```
+
+退出登录：
+
+```bash
+curl -X POST http://localhost:3000/api/auth/logout
+```
+
+## Session 与测评 API
+
+创建测评 session：
 
 ```bash
 curl -X POST http://localhost:3000/api/sessions \
@@ -64,7 +145,7 @@ curl -X POST http://localhost:3000/api/sessions \
   -d '{"flowId":"2117"}'
 ```
 
-Save answers incrementally:
+增量保存答案：
 
 ```bash
 curl -X PATCH http://localhost:3000/api/sessions/{sessionId}/answers \
@@ -77,51 +158,66 @@ curl -X PATCH http://localhost:3000/api/sessions/{sessionId}/answers \
   }'
 ```
 
-Repeat the same endpoint for each next step, increasing `currentStep` by one. The API rejects skipped steps, unknown question keys, unsupported enum values, and out-of-range numeric values.
+API 会拒绝：
 
-Recover progress:
+- 跳过未完成步骤
+- 倒退 `currentStep`
+- 未知题目 key
+- 不支持的枚举值
+- 超出合理范围的数值
+- 已完成测评后的答案更新
+
+恢复当前浏览器 session：
+
+```bash
+curl http://localhost:3000/api/sessions/current
+```
+
+通过 sessionId 获取进度：
 
 ```bash
 curl http://localhost:3000/api/sessions/{sessionId}
 ```
 
-Complete the assessment and calculate results:
+完成测评并计算结果：
 
 ```bash
 curl -X POST http://localhost:3000/api/sessions/{sessionId}/complete
 ```
 
-Fetch gated results:
+获取当前浏览器结果：
+
+```bash
+curl http://localhost:3000/api/results/current
+```
+
+通过 sessionId 获取结果：
 
 ```bash
 curl http://localhost:3000/api/results/{sessionId}
 ```
 
-## Subscription & Mock Payment
+## 订阅与模拟支付
 
-This project implements the required subscription-gated result flow with a simulated payment endpoint. It does not charge real money.
+本项目有一个模拟支付接口 `/api/pay`，不会收取真实费用。
 
-The result API checks the user's `subscription_status` every time `GET /api/results/{sessionId}` is called.
-
-### Non-member result
-
-When the subscription is missing, inactive, or expired, the API returns:
+未付费时，结果接口返回：
 
 - `access: "LOCKED"`
 - `subscriptionStatus`
 - BMI
-- BMI category
-- Basic health summary
-- A `paywall` object explaining which fields are protected
+- BMI 分类
+- 基础总结
+- `paywall.protectedFields`
 
-Protected fields are not included in the response. Non-members cannot receive:
+受保护字段不会出现在非会员响应中：
 
 - `recommendedCalories`
 - `targetDate`
 - `detailedRecommendation`
 - `projectionCurve`
 
-Example locked response shape:
+锁定响应示例：
 
 ```json
 {
@@ -145,20 +241,7 @@ Example locked response shape:
 }
 ```
 
-### Member result
-
-After payment is simulated, the same endpoint returns:
-
-- `access: "FULL"`
-- Recommended daily calories
-- Target prediction date
-- Detailed recommendation data
-- Weekly projection curve
-- Full report data used by the result UI
-
-The API response intentionally changes based on server-side subscription state, not frontend state, so refreshing the page or calling the API directly preserves the same access rules.
-
-Simulate payment:
+模拟支付：
 
 ```bash
 curl -X POST http://localhost:3000/api/pay \
@@ -172,7 +255,16 @@ curl -X POST http://localhost:3000/api/pay \
   }'
 ```
 
-Production webhook requests must include an `x-pay-signature` HMAC-SHA256 signature over the raw JSON body using `PAY_WEBHOOK_SECRET`. Include a stable `providerEventId` to make retries idempotent:
+支付成功后：
+
+- 写入 `PaymentEvent`
+- `Subscription.status` 更新为 `ACTIVE`
+- 同一个结果接口返回 `access: "FULL"`
+- 完整结果包含推荐热量、目标日期、详细建议和预测曲线
+
+生产环境中，`/api/pay` 应替换为真实支付服务商 webhook，例如 Stripe 或 Paddle。真实 webhook 必须校验签名、金额、货币和事件 ID，并保证幂等。
+
+带签名的支付请求示例：
 
 ```bash
 curl -X POST http://localhost:3000/api/pay \
@@ -181,23 +273,19 @@ curl -X POST http://localhost:3000/api/pay \
   -d '{"sessionId":"{sessionId}","providerEventId":"evt_123","payload":{"mock":true}}'
 ```
 
-After payment, `GET /api/results/{sessionId}` returns the full result including recommended calories, target date, detailed recommendations, and projection curve.
-
-In a production app, `/api/pay` should be replaced by a real payment provider webhook such as Stripe or Paddle. That webhook should verify signatures, validate amount and currency, store provider event IDs for idempotency, and reject replayed or mismatched events. This project keeps payment simulated because the assignment asks for a backend subscription/payment loop rather than live card processing.
-
-Generate a paid demo session for review:
+生成一个已支付的演示 session：
 
 ```bash
 APP_URL=http://localhost:3000 npm run demo:paid-session
 ```
 
-Use the deployed URL after deployment:
+部署后使用线上地址：
 
 ```bash
 APP_URL=https://your-deployed-app.vercel.app npm run demo:paid-session
 ```
 
-## Database Schema
+## 数据库结构
 
 ```mermaid
 erDiagram
@@ -210,6 +298,9 @@ erDiagram
   User {
     string id
     string sessionId
+    string email
+    string displayName
+    string passwordHash
     datetime createdAt
     datetime updatedAt
   }
@@ -271,75 +362,94 @@ erDiagram
   }
 ```
 
-## Tests
+关键约束：
+
+- `User.sessionId` 唯一，用于恢复当前测评 session。
+- `User.email` 唯一，用于账号登录。
+- `AssessmentAnswer` 对 `(assessmentId, questionKey)` 建立唯一约束，重复提交会更新原答案。
+- `PaymentEvent.providerEventId` 唯一，用于支付 webhook 幂等。
+
+## 常用命令
+
+```bash
+npm run dev
+npm run build
+npm run lint
+npm test
+npx tsc --noEmit
+npx prisma generate
+npx prisma migrate deploy
+```
+
+## 测试
 
 ```bash
 npx tsc --noEmit
-npm test
 npm run lint
+npm test
 npm run build
 ```
 
-Current coverage includes:
+测试覆盖：
 
-- Health assessment algorithm unit tests.
-- BMI category boundaries.
-- Calorie and target projection behavior.
-- Invalid, missing, extreme, non-finite, and unreasonable age, height, current weight, target weight, and activity inputs.
-- API boundary validation for unsupported enum values, non-numeric injection attempts, malformed answer payloads, and out-of-range saved answers.
-- Database-backed API flow for session creation, answer persistence, progress recovery by session id and cookie, completion, persisted health profile/result data, unpaid result gating, `/pay`, and paid result unlocking.
-- Missing required answer behavior for the complete endpoint.
-- Cookie-backed current endpoint protection when no session cookie is present.
-- Funnel state-machine boundaries for skipped steps, out-of-order submissions, backwards progress, unknown question keys, repeated submissions, and current-step lag caused by concurrent saves.
-- Sequential duplicate-answer updates, verifying the newer value replaces the previous one without adding another row.
-- A true concurrent duplicate-answer integration case using parallel PATCH requests, verifying only one answer row is retained for the same question key.
-- Completed assessments reject later answer updates.
-- Payment webhook signature helper behavior and idempotent replay handling.
+- 健康评估算法和 BMI 分类边界
+- 卡路里和目标日期预测
+- 输入范围校验和非法数据拦截
+- 答案保存状态机：跳题、乱序、倒退、未知 key
+- 重复答案更新和并发 PATCH
+- 已完成测评禁止继续修改答案
+- 非会员结果字段保护
+- 模拟支付、Webhook 签名和幂等
+- 账号密码哈希、账号 cookie 签名和 auth schema
 
-These scenarios were chosen because they map directly to the assignment's failure modes: a user can leave mid-funnel and return, invalid data must not reach persistence/calculation, protected result fields must never leak to non-members, and payment retries must be safe.
+当配置了 `DATABASE_URL` 时，依赖数据库的集成测试会运行。CI 中会启动 PostgreSQL 服务并执行 migration。本地如果连的是 Supabase 远程库，注意测试会写入数据。
 
-The API flow tests run when `DATABASE_URL` is available. GitHub Actions provides a PostgreSQL service and runs migrations, so database-backed integration tests run automatically in CI. Without `DATABASE_URL` in a local shell, database-backed tests are skipped while unit-level algorithm, schema, funnel, and payment helper tests still run.
+## 持续集成
 
-Temporarily not covered:
-
-- Real third-party payment provider callbacks, because `/pay` is intentionally a simulated callback for this assignment.
-- Browser-level E2E tests with a real page automation runner, because the main grading requirements target backend data flow, access control, and automated API/core tests.
-- Load or soak testing, because this is a prototype flow and the current risk is correctness rather than traffic capacity.
-
-## CI
-
-GitHub Actions is configured in `.github/workflows/ci.yml` and runs:
+GitHub Actions 配置位于 `.github/workflows/ci.yml`，主要步骤：
 
 - `npm ci`
-- `npx prisma migrate deploy` against a CI PostgreSQL service
+- `npx prisma migrate deploy`
 - `npx tsc --noEmit`
 - `npm run lint`
 - `npm test`
 - `npm run build`
 
-## Quality Notes
+## 质量说明
 
-- Non-members never receive protected fields such as `projectionCurve` or `detailedRecommendation`.
-- The `/pay` endpoint records a `PaymentEvent` and upgrades the user's subscription to `ACTIVE`.
-- `/api/pay` verifies signed webhook bodies when `PAY_WEBHOOK_SECRET` is configured and uses `providerEventId` as a unique idempotency key.
-- `AssessmentAnswer` uses a unique `(assessmentId, questionKey)` constraint so repeated submissions update the same answer instead of creating duplicates.
-- `PATCH /api/sessions/{sessionId}/answers` validates values before persistence, so invalid health values are rejected at the API boundary.
-- Funnel answers must follow the configured step order before completion can calculate a result.
-- Health calculations run server-side only and are persisted before the result page is shown.
+- 受保护结果字段只由服务端订阅状态决定，前端状态无法绕过。
+- 密码只保存 scrypt 哈希，不保存明文。
+- 账号 cookie 为 httpOnly，并带 HMAC 签名。
+- 健康计算只在服务端执行，结果会持久化。
+- 答案保存使用 `upsert`，同一题不会生成重复答案行。
+- 支付事件通过 `providerEventId` 做幂等控制，避免重复支付回调造成重复状态变更。
 
-## AI Collaboration Notes
+## 部署清单
 
-AI was used to accelerate schema planning, API shape, edge-case enumeration, and test generation. The generated direction was reviewed against the challenge requirements before implementation.
+1. 创建 PostgreSQL/Supabase 数据库。
+2. 配置生产环境变量：`DATABASE_URL`、`AUTH_COOKIE_SECRET`、`PAY_WEBHOOK_SECRET`。
+3. 发布前执行：
 
-One AI-suggested approach that was rejected was using an interactive Prisma transaction for session creation. Against the Supabase pooler it produced a `P2028` transaction startup timeout, so the implementation was changed to a nested Prisma write for session creation and explicit upserts for answer persistence. This kept the flow reliable while preserving idempotent answer updates.
+```bash
+npx prisma migrate deploy
+npm run build
+```
 
-## Deployment Checklist
+4. 部署到 Vercel 或其他 Node.js 托管平台。
+5. 访问线上地址，完整跑通：
 
-These require account access and should be completed before submission:
+```text
+注册/游客进入 -> 完成测评 -> 看到锁定结果 -> 登录/注册 -> 点击解锁 -> 看到完整结果
+```
 
-- Deploy the app to Vercel or another public host.
-- Add `DATABASE_URL` to the deployment environment variables.
-- Run `npx prisma migrate deploy` in the deployment pipeline or before release.
-- Run `APP_URL=https://your-deployed-app npm run demo:paid-session` and paste the paid `sessionId` into your submission notes.
-- Confirm the public URL can complete the quiz, show locked results, call `/api/pay`, and show full results.
-- Confirm GitHub Actions passes on the submitted commit.
+6. 如需提交演示数据，生成已付费 session：
+
+```bash
+APP_URL=https://your-deployed-app npm run demo:paid-session
+```
+
+## AI 协作说明
+
+本项目开发中使用 AI 辅助梳理数据库结构、API 边界、异常场景和测试用例。所有关键实现都经过人工审查，并通过类型检查、lint、测试和 build 验证。
+
+曾评估过 Prisma interactive transaction，但在 Supabase 连接池场景中容易出现 `P2028` 事务启动超时。因此当前实现更偏向 Prisma nested write、显式 `upsert` 和短事务，以提高稳定性。
