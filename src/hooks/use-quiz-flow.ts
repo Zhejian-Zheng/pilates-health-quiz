@@ -140,28 +140,52 @@ export function useQuizFlow() {
   }
 
   async function continueAsGuest() {
-    await fetch("/api/auth/logout", {
-      method: "POST",
-      credentials: "same-origin",
-    }).catch(() => null);
+    try {
+      setError(null);
+      await fetch("/api/auth/logout", {
+        method: "POST",
+        credentials: "same-origin",
+      }).catch(() => null);
 
-    const guestProfile = getGuestProfile();
-    sessionPromiseRef.current = null;
-    pendingSavesRef.current = [];
-    pendingSaveCountRef.current = 0;
-    saveFailureRef.current = false;
-    highestPersistedStepRef.current = 0;
-    localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(guestProfile));
-    setAuthProfile(guestProfile);
-    setActiveSessionId(null);
-    setSubscriptionStatus("INACTIVE");
-    setCurrentStep(0);
-    setAnswers({});
-    setNumberDrafts({});
-    setResult(null);
-    setPendingSaveCount(0);
-    setSyncStatus("idle");
-    setError(null);
+      sessionPromiseRef.current = null;
+      pendingSavesRef.current = [];
+      pendingSaveCountRef.current = 0;
+      saveFailureRef.current = false;
+      highestPersistedStepRef.current = 0;
+      setActiveSessionId(null);
+      setSubscriptionStatus("INACTIVE");
+      setCurrentStep(0);
+      setAnswers({});
+      setNumberDrafts({});
+      setResult(null);
+      setPendingSaveCount(0);
+      setSyncStatus("idle");
+
+      const response = await fetch("/api/sessions", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ flowId: "2117" }),
+      });
+
+      if (!response.ok) {
+        throw new Error(String(t.createError));
+      }
+
+      const progress = (await response.json()) as SessionProgress;
+      const guestProfile = getGuestProfile();
+      localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(guestProfile));
+      setAuthProfile(guestProfile);
+      applyProgress(progress);
+    } catch (guestError) {
+      localStorage.removeItem(AUTH_STORAGE_KEY);
+      setAuthProfile(null);
+      setError(
+        guestError instanceof Error ? guestError.message : String(t.createError),
+      );
+    }
   }
 
   async function submitAuth(

@@ -1,5 +1,9 @@
 import { copy } from "@/lib/quiz-content";
 import { formatAnswerValue } from "@/lib/quiz-formatters";
+import {
+  getDisplayedRemainingCount,
+  getStepNavigatorItemStates,
+} from "@/lib/step-navigator-state";
 import type { AnswerValue, Language, Question } from "@/lib/quiz-types";
 
 export function StepNavigator({
@@ -24,7 +28,17 @@ export function StepNavigator({
   resultReady: boolean;
 }) {
   const t = copy[language];
-  const displayedRemainingCount = resultReady ? 0 : remainingCount;
+  const displayedRemainingCount = getDisplayedRemainingCount(
+    remainingCount,
+    resultReady,
+  );
+  const itemStates = getStepNavigatorItemStates({
+    answers,
+    currentStep,
+    questions,
+    reachableStep,
+    resultReady,
+  });
 
   return (
     <aside className="border-t border-[#0f766e]/12 pt-5">
@@ -48,40 +62,31 @@ export function StepNavigator({
 
       <div className="mt-4 grid max-h-[54vh] gap-1 overflow-y-auto pr-1 lg:max-h-[calc(100vh-230px)]">
         {questions.map((question, index) => {
-          const isAnswered = answers[question.key] !== undefined;
-          const isComplete = resultReady || isAnswered;
-          const isCurrent = !resultReady && currentStep === index;
-          const isReachable = index <= reachableStep;
-          const status = isCurrent
-            ? String(t.current)
-            : isComplete
-              ? String(t.completed)
-              : isReachable
-                ? String(t.unanswered)
-                : String(t.upcoming);
+          const itemState = itemStates[index];
+          const status = String(t[itemState.status]);
 
           return (
             <button
-              aria-current={isCurrent ? "step" : undefined}
+              aria-current={itemState.isCurrent ? "step" : undefined}
               className={`group grid min-h-[50px] grid-cols-[26px_minmax(0,1fr)] items-center gap-2.5 rounded-xl px-2 py-2 text-left transition ${
-                isCurrent
+                itemState.isCurrent
                   ? "bg-[#e2f4ef]"
-                  : isComplete
+                  : itemState.isComplete
                     ? "hover:bg-white/70"
-                    : isReachable
+                    : itemState.isReachable
                       ? "hover:bg-white/56"
                       : "cursor-not-allowed text-[#52746d]/45"
               }`}
-              disabled={!isReachable}
+              disabled={!itemState.isReachable}
               key={question.key}
               onClick={() => onStepSelect(index)}
               type="button"
             >
               <span
                 className={`flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-bold ${
-                  isComplete
+                  itemState.isComplete
                     ? "bg-[#0f766e] text-white"
-                    : isCurrent
+                    : itemState.isCurrent
                       ? "bg-[#14b8a6] text-white"
                       : "bg-[#0f766e]/8 text-[#52746d]"
                 }`}
@@ -94,7 +99,7 @@ export function StepNavigator({
                 </span>
                 <span className="mt-0.5 flex items-center gap-1.5 text-[11px] text-[#52746d]">
                   <span>{status}</span>
-                  {isAnswered ? (
+                  {itemState.isAnswered ? (
                     <span className="truncate text-[#52746d]">
                       {formatAnswerValue(answers[question.key], language)}
                     </span>

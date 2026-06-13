@@ -19,6 +19,11 @@ export function QuizPage() {
   const isGuest = state.authProfile?.mode === "guest";
   const shouldShowAuthDialog = isAuthDialogOpen && isGuest;
 
+  function continueAsGuest() {
+    setIsAuthDialogOpen(false);
+    void actions.continueAsGuest();
+  }
+
   if (state.isLoading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-[#f5fbf8] px-6 text-[#12312c]">
@@ -50,7 +55,7 @@ export function QuizPage() {
             <AuthGate
               error={state.error}
               language={state.language}
-              onContinueAsGuest={actions.continueAsGuest}
+              onContinueAsGuest={continueAsGuest}
               onSubmitAuth={actions.submitAuth}
             />
           ) : (
