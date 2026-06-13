@@ -29,21 +29,8 @@ type PayResponse = {
 };
 
 export function useQuizFlow() {
-  const [language, setLanguage] = useState<Language>(() => {
-    if (typeof window === "undefined") {
-      return "en";
-    }
-
-    const storedLanguage = window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
-    return storedLanguage === "zh" ? "zh" : "en";
-  });
-  const [authProfile, setAuthProfile] = useState<AuthProfile | null>(() => {
-    if (typeof window === "undefined") {
-      return null;
-    }
-
-    return readStoredAuthProfile();
-  });
+  const [language, setLanguage] = useState<Language>("en");
+  const [authProfile, setAuthProfile] = useState<AuthProfile | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [currentStep, setCurrentStep] = useState(0);
   const [answers, setAnswers] = useState<Record<string, AnswerValue>>({});
@@ -94,9 +81,24 @@ export function useQuizFlow() {
   useEffect(() => {
     async function restoreProgress() {
       try {
+        const storedLanguage = window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
+        if (storedLanguage === "zh") {
+          setLanguage("zh");
+        }
+
+        const storedProfile = readStoredAuthProfile();
+        if (storedProfile) {
+          setAuthProfile(storedProfile);
+        }
+
         const response = await fetch("/api/sessions/current", {
           credentials: "same-origin",
         });
+
+        if (response.status === 204) {
+          setIsLoading(false);
+          return;
+        }
 
         if (!response.ok) {
           setIsLoading(false);
@@ -105,7 +107,7 @@ export function useQuizFlow() {
 
         const progress = (await response.json()) as SessionProgress;
 
-        if (!readStoredAuthProfile()) {
+        if (!storedProfile) {
           const restoredProfile = progress.authProfile ?? getGuestProfile();
           localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(restoredProfile));
           setAuthProfile(restoredProfile);
@@ -236,9 +238,25 @@ export function useQuizFlow() {
   }
 
   function returnHome() {
+    void fetch("/api/sessions/current", {
+      method: "DELETE",
+      credentials: "same-origin",
+    });
+    sessionPromiseRef.current = null;
+    pendingSavesRef.current = [];
+    pendingSaveCountRef.current = 0;
+    saveFailureRef.current = false;
+    highestPersistedStepRef.current = 0;
     localStorage.removeItem(AUTH_STORAGE_KEY);
     setAuthProfile(null);
+    setActiveSessionId(null);
     setSubscriptionStatus("INACTIVE");
+    setCurrentStep(0);
+    setAnswers({});
+    setNumberDrafts({});
+    setResult(null);
+    setPendingSaveCount(0);
+    setSyncStatus("idle");
     setError(null);
   }
 

@@ -11,11 +11,7 @@ import {
   readSessionCookie,
   setSessionCookie,
 } from "@/lib/session-cookie";
-import {
-  errorResponse,
-  getLatestSessionProgress,
-  toSessionProgress,
-} from "@/lib/sessions";
+import { getLatestSessionProgress, toSessionProgress } from "@/lib/sessions";
 
 export const runtime = "nodejs";
 
@@ -33,17 +29,14 @@ export async function GET(request: Request) {
   }
 
   if (!sessionId) {
-    return errorResponse("Session cookie not found", 404);
+    return new NextResponse(null, { status: 204 });
   }
 
   const user = await getLatestSessionProgress(sessionId);
   const progress = user ? toSessionProgress(user) : null;
 
   if (!progress) {
-    const response = NextResponse.json(
-      { error: { message: "Session not found" } },
-      { status: 404 },
-    );
+    const response = new NextResponse(null, { status: 204 });
     clearSessionCookie(response);
     clearAccountCookie(response);
 

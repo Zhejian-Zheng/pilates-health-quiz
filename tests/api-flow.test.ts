@@ -14,7 +14,7 @@ const healthAnswers = [
 ];
 
 describe("cookie-backed current endpoints", () => {
-  it("rejects current session, current result, and cookie-backed payment without a session cookie", async () => {
+  it("returns empty current session, and rejects current result and cookie-backed payment without a session cookie", async () => {
     const { GET: getCurrentSession } = await import(
       "../src/app/api/sessions/current/route"
     );
@@ -26,10 +26,8 @@ describe("cookie-backed current endpoints", () => {
     const sessionResponse = await getCurrentSession(
       new Request("http://test.local/api/sessions/current"),
     );
-    const session = await sessionResponse.json();
 
-    expect(sessionResponse.status).toBe(404);
-    expect(session.error.message).toContain("Session cookie not found");
+    expect(sessionResponse.status).toBe(204);
 
     const resultResponse = await getCurrentResult(
       new Request("http://test.local/api/results/current"),
