@@ -19,6 +19,7 @@ export function AuthGate({
   onSubmitAuth: (
     mode: AuthFormMode,
     credentials: { displayName?: string; email: string; password: string },
+    options?: { preserveResult?: boolean },
   ) => void | Promise<void>;
   showGuestOption?: boolean;
 }) {

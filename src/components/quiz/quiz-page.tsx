@@ -39,7 +39,7 @@ export function QuizPage() {
             authProfile={state.authProfile}
             language={state.language}
             onLanguageChange={actions.changeLanguage}
-            onLoginRequest={() => setIsAuthDialogOpen(true)}
+            onLoginRequest={actions.returnHome}
             onLogout={actions.logout}
             onReturnHome={actions.returnHome}
             onUpgradeMembership={actions.upgradeMembership}
@@ -178,7 +178,9 @@ export function QuizPage() {
               error={state.error}
               language={state.language}
               onContinueAsGuest={() => setIsAuthDialogOpen(false)}
-              onSubmitAuth={actions.submitAuth}
+              onSubmitAuth={(mode, credentials) =>
+                actions.submitAuth(mode, credentials, { preserveResult: true })
+              }
               showGuestOption={false}
             />
           </div>

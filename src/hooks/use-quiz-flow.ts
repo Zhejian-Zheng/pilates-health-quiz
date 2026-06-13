@@ -143,6 +143,7 @@ export function useQuizFlow() {
   async function submitAuth(
     mode: Exclude<AuthMode, "guest">,
     credentials: { displayName?: string; email: string; password: string },
+    options?: { preserveResult?: boolean },
   ) {
     const email = credentials.email.trim();
 
@@ -171,11 +172,14 @@ export function useQuizFlow() {
       }
 
       const auth = (await response.json()) as AuthResponse;
+      const shouldPreserveResult = Boolean(options?.preserveResult && result);
       localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(auth.profile));
       setAuthProfile(auth.profile);
-      setResult(null);
+      if (!shouldPreserveResult) {
+        setResult(null);
+      }
       applyProgress(auth.progress);
-      if (auth.progress.status === "COMPLETED") {
+      if (auth.progress.status === "COMPLETED" && !shouldPreserveResult) {
         await fetchResult();
       }
     } catch (authError) {
