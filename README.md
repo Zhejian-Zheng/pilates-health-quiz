@@ -175,6 +175,28 @@ API 会拒绝：
 - 超出合理范围的数值
 - 已完成测评后的答案更新
 
+### API 路径设计与校验说明
+
+API 路径按资源职责拆分，避免把测评、结果、账号和支付逻辑混在一个接口里：
+
+- `POST /api/sessions`：创建测评 session。
+- `GET /api/sessions/current`：通过 httpOnly cookie 恢复当前浏览器的测评进度。
+- `GET /api/sessions/{sessionId}`：读取指定 session 进度。
+- `PATCH /api/sessions/{sessionId}/answers`：增量保存答案。
+- `POST /api/sessions/{sessionId}/complete`：完成测评，服务端生成健康结果。
+- `GET /api/results/current`：读取当前浏览器 session 的结果。
+- `GET /api/results/{sessionId}`：读取指定 session 的结果。
+- `POST /api/auth/register`、`POST /api/auth/login`、`POST /api/auth/logout`：账号注册、登录、退出。
+- `POST /pay`：模拟支付回调；`POST /api/pay` 保留兼容。
+
+数据验证不是只依赖前端，而是在服务端分三层处理：
+
+- 请求结构层：Zod 校验 body 结构、字段长度、数组长度、整数范围和 JSON 合法性。
+- 业务值域层：对身高、体重、年龄、枚举题做白名单和上下限校验。
+- 流程状态层：校验是否跳题、倒退、提交未知题目、已完成后继续修改。
+
+因此，即使攻击者绕过前端直接请求 API，接口也会拒绝非法值、越界值和乱序流程。
+
 ### 非法数值注入与越界输入防护
 
 答案保存接口 `PATCH /api/sessions/{sessionId}/answers` 会先经过 Zod schema 和业务值校验，再写入数据库。
