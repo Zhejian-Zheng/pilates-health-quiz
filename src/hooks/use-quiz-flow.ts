@@ -139,11 +139,28 @@ export function useQuizFlow() {
     localStorage.setItem(LANGUAGE_STORAGE_KEY, nextLanguage);
   }
 
-  function continueAsGuest() {
+  async function continueAsGuest() {
+    await fetch("/api/auth/logout", {
+      method: "POST",
+      credentials: "same-origin",
+    }).catch(() => null);
+
     const guestProfile = getGuestProfile();
+    sessionPromiseRef.current = null;
+    pendingSavesRef.current = [];
+    pendingSaveCountRef.current = 0;
+    saveFailureRef.current = false;
+    highestPersistedStepRef.current = 0;
     localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(guestProfile));
     setAuthProfile(guestProfile);
+    setActiveSessionId(null);
     setSubscriptionStatus("INACTIVE");
+    setCurrentStep(0);
+    setAnswers({});
+    setNumberDrafts({});
+    setResult(null);
+    setPendingSaveCount(0);
+    setSyncStatus("idle");
     setError(null);
   }
 

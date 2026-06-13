@@ -39,7 +39,7 @@ export function QuizPage() {
             authProfile={state.authProfile}
             language={state.language}
             onLanguageChange={actions.changeLanguage}
-            onLoginRequest={actions.returnHome}
+            onLoginRequest={() => setIsAuthDialogOpen(true)}
             onLogout={actions.logout}
             onReturnHome={actions.returnHome}
             onUpgradeMembership={actions.upgradeMembership}

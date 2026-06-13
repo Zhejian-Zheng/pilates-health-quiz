@@ -24,6 +24,7 @@ export function StepNavigator({
   resultReady: boolean;
 }) {
   const t = copy[language];
+  const displayedRemainingCount = resultReady ? 0 : remainingCount;
 
   return (
     <aside className="border-t border-[#0f766e]/12 pt-5">
@@ -33,7 +34,7 @@ export function StepNavigator({
             {String(t.questionList)}
           </p>
           <p className="mt-0.5 text-sm font-semibold text-[#244942]">
-            {remainingCount} {String(t.remaining)}
+            {displayedRemainingCount} {String(t.remaining)}
           </p>
         </div>
         <button
@@ -48,11 +49,12 @@ export function StepNavigator({
       <div className="mt-4 grid max-h-[54vh] gap-1 overflow-y-auto pr-1 lg:max-h-[calc(100vh-230px)]">
         {questions.map((question, index) => {
           const isAnswered = answers[question.key] !== undefined;
+          const isComplete = resultReady || isAnswered;
           const isCurrent = !resultReady && currentStep === index;
           const isReachable = index <= reachableStep;
           const status = isCurrent
             ? String(t.current)
-            : isAnswered
+            : isComplete
               ? String(t.completed)
               : isReachable
                 ? String(t.unanswered)
@@ -64,7 +66,7 @@ export function StepNavigator({
               className={`group grid min-h-[50px] grid-cols-[26px_minmax(0,1fr)] items-center gap-2.5 rounded-xl px-2 py-2 text-left transition ${
                 isCurrent
                   ? "bg-[#e2f4ef]"
-                  : isAnswered
+                  : isComplete
                     ? "hover:bg-white/70"
                     : isReachable
                       ? "hover:bg-white/56"
@@ -77,7 +79,7 @@ export function StepNavigator({
             >
               <span
                 className={`flex h-7 w-7 items-center justify-center rounded-full text-[11px] font-bold ${
-                  isAnswered
+                  isComplete
                     ? "bg-[#0f766e] text-white"
                     : isCurrent
                       ? "bg-[#14b8a6] text-white"
