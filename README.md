@@ -1,3 +1,5 @@
+[English](README_en.md) | **中文**
+
 # 普拉提健康测评 (Pilates Health Quiz)
 
 [![CI](https://github.com/Zhejian-Zheng/pilates-health-quiz/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Zhejian-Zheng/pilates-health-quiz/actions/workflows/ci.yml)
